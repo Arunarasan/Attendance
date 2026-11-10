@@ -93,10 +93,21 @@ public class EmployeeService {
         }
     }
 
-    public M.EmpView update(long id, Input in) {
+    public M.EmpView update(long id, Input in, long actorId) {
         M.EmpView cur = get(id);
         String role = in.role() == null ? cur.role() : in.role();
         String method = in.attendanceMethod() == null ? cur.attendanceMethod() : in.attendanceMethod();
+        boolean newActive = in.active() == null ? cur.active() : in.active();
+        if (id == actorId) {
+            if (!newActive) throw ApiException.bad("You cannot deactivate your own account");
+            if (!role.equals(cur.role())) throw ApiException.bad("You cannot change your own role");
+        }
+        boolean losesAdmin = "ADMIN".equals(cur.role()) && cur.active() && (!"ADMIN".equals(role) || !newActive);
+        if (losesAdmin) {
+            Integer others = db.sql("SELECT COUNT(*) FROM employees WHERE role = 'ADMIN' AND active = TRUE AND id <> ?")
+                    .param(id).query(Integer.class).single();
+            if (others == 0) throw ApiException.bad("At least one active admin is required");
+        }
         check(role, ROLES, "role");
         check(method, METHODS, "attendanceMethod");
         if (in.deviceBindingMode() != null) check(in.deviceBindingMode(), MODES, "deviceBindingMode");

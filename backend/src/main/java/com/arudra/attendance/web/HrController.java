@@ -57,7 +57,7 @@ public class HrController {
     // employees
     @GetMapping("/employees") public List<M.EmpView> employees() { return employees.list(); }
     @PostMapping("/employees") public M.EmpView createEmployee(@RequestBody EmployeeService.Input in) { return employees.create(in); }
-    @PutMapping("/employees/{id}") public M.EmpView updateEmployee(@PathVariable long id, @RequestBody EmployeeService.Input in) { return employees.update(id, in); }
+    @PutMapping("/employees/{id}") public M.EmpView updateEmployee(@AuthenticationPrincipal Actor a, @PathVariable long id, @RequestBody EmployeeService.Input in) { return employees.update(id, in, a.employeeId()); }
 
     @PostMapping("/employees/{id}/app-code")
     public Map<String, String> appCode(@PathVariable long id) { return Map.of("code", pairing.createCode(id)); }

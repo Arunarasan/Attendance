@@ -132,6 +132,14 @@ class FlowTest {
         call(HttpMethod.PUT, "/api/hr/employees/" + empId, admin, Map.of("deviceBindingMode", "SOFT"), 200);
     }
 
+    @Test @Order(6)
+    void adminCannotDeactivateOrDemoteSelf() throws Exception {
+        long adminId = call(HttpMethod.GET, "/api/me", admin, null, 200).get("id").asLong();
+        call(HttpMethod.PUT, "/api/hr/employees/" + adminId, admin, Map.of("active", false), 400);
+        call(HttpMethod.PUT, "/api/hr/employees/" + adminId, admin, Map.of("role", "EMPLOYEE"), 400);
+        call(HttpMethod.PUT, "/api/hr/employees/" + adminId, admin, Map.of("name", "Administrator"), 200);
+    }
+
     @Test @Order(7)
     void appPairingIssuesRevocableDeviceToken() throws Exception {
         String code = call(HttpMethod.POST, "/api/hr/employees/" + empId + "/app-code", admin, null, 200).get("code").asText();
