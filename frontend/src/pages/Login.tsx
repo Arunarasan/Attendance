@@ -11,18 +11,16 @@ const Svg = ({ children, size = 22 }: { children: ReactNode; size?: number }) =>
 )
 const IconUser = () => <Svg><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></Svg>
 const IconLock = () => <Svg><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></Svg>
-const IconPhone = () => <Svg><rect x="7" y="2.5" width="10" height="19" rx="2.5" /><path d="M11 18.5h2" /></Svg>
 const IconEye = ({ off }: { off: boolean }) => <Svg>{off ? <><path d="M3 3l18 18" /><path d="M10.6 6.2A9.7 9.7 0 0 1 12 6c5 0 8.5 4 9.5 6a12 12 0 0 1-2.6 3.3M6.5 7.6C4.4 9 3 11 2.5 12c1 2 4.5 6 9.5 6 1.3 0 2.5-.3 3.6-.7" /><path d="M9.9 10a3 3 0 0 0 4.1 4.1" /></> : <><path d="M2.5 12C3.5 10 7 6 12 6s8.500 4 9.500 6c-1 2-4.500 6-9.500 6S3.500 14 2.500 12z" /><circle cx="12" cy="12" r="3" /></>}</Svg>
 const IconArrow = () => <Svg size={20}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>
 const IconFace = () => <Svg size={20}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><path d="M9 10v1M15 10v1M9.500 15c.7.7 1.500 1 2.500 1s1.800-.3 2.500-1" /></Svg>
 const IconCalendar = () => <Svg size={34}><rect x="3.500" y="5" width="17" height="15.500" rx="3" /><path d="M8 3v4M16 3v4" /><path d="M8.500 13l2.500 2.500 4.500-5" /></Svg>
 
-/** One identifier box: an email signs in as HR/admin; an employee ID also asks for the phone number. */
+/** One identifier box: an email signs in as HR/admin; an employee ID or phone number signs in an employee. */
 export default function Login({ onDone }: { onDone: () => void }) {
   const nav = useNavigate()
   const remembered = readRemembered()
   const [ident, setIdent] = useState(remembered)
-  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(!!remembered)
@@ -39,7 +37,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
       const id = ident.trim()
       const r = await post<{ token: string; employee: { role: string } }>(
         isEmail ? '/api/auth/login' : '/api/auth/employee-login',
-        isEmail ? { email: id, password } : { employeeCode: id, phone, password },
+        isEmail ? { email: id, password } : { employeeCode: id, password },
       )
       try { remember ? localStorage.setItem(REMEMBER_KEY, id) : localStorage.removeItem(REMEMBER_KEY) } catch { /* storage unavailable */ }
       setAuth({ kind: 'jwt', token: r.token })
@@ -70,15 +68,9 @@ export default function Login({ onDone }: { onDone: () => void }) {
           <form onSubmit={submit}>
             <div className="lg-field">
               <span className="lg-ico"><IconUser /></span>
-              <input value={ident} onChange={e => setIdent(e.target.value)} placeholder="Employee ID / Email" aria-label="Employee ID or email"
+              <input value={ident} onChange={e => setIdent(e.target.value)} placeholder="Employee ID / Phone / Email" aria-label="Employee ID, phone number or email"
                 autoCapitalize="none" autoComplete="username" required />
             </div>
-            {!isEmail && ident.trim() !== '' && (
-              <div className="lg-field">
-                <span className="lg-ico"><IconPhone /></span>
-                <input type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number" aria-label="Phone number" autoComplete="tel" required />
-              </div>
-            )}
             <div className="lg-field">
               <span className="lg-ico"><IconLock /></span>
               <input type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" aria-label="Password" autoComplete="current-password" required />

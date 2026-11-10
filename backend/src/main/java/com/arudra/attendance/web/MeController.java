@@ -73,16 +73,18 @@ public class MeController {
         return Map.of("token", jwt.issue(e.id(), e.role()), "employee", employees.get(e.id()));
     }
 
-    /** Employee ID + phone number + password. All three must match; the error never says which one was wrong. */
+    /** Employee ID or phone number (either one) + password. The error never says which part was wrong. */
     @PostMapping("/auth/employee-login")
     public Map<String, Object> employeeLogin(@RequestBody EmployeeLogin in, jakarta.servlet.http.HttpServletRequest req) {
         String ip = clientIp.of(req);
         throttle.check(in.employeeCode(), ip);
-        M.Emp e = employees.byCode(in.employeeCode());
-        boolean ok = e != null && e.active() && EmployeeService.samePhone(e.phone(), in.phone()) && employees.passwordMatches(e, in.password());
+        String id = in.employeeCode() != null && !in.employeeCode().isBlank() ? in.employeeCode() : in.phone();
+        M.Emp e = employees.byCode(id);
+        if (e == null) e = employees.byPhone(id);
+        boolean ok = e != null && e.active() && employees.passwordMatches(e, in.password());
         if (!ok) {
             throttle.fail(in.employeeCode(), ip);
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "BAD_LOGIN", "Wrong employee ID, phone number or password");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "BAD_LOGIN", "Wrong employee ID / phone number or password");
         }
         throttle.ok(in.employeeCode(), ip);
         return Map.of("token", jwt.issue(e.id(), e.role()), "employee", employees.get(e.id()));

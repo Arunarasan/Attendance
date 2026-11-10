@@ -61,6 +61,13 @@ public class EmployeeService {
                 .param(code == null ? "" : code.trim()).query(M.Emp.class).optional().orElse(null);
     }
 
+    /** Finds an employee by phone number (phones are unique); compares the last 10 digits. */
+    public M.Emp byPhone(String phone) {
+        if (digits(phone).length() < 7) return null;
+        return db.sql("SELECT id, employee_code, name, email, phone, password_hash, role, active, hourly_rate, base_salary, attendance_method, device_binding_mode FROM employees")
+                .query(M.Emp.class).list().stream().filter(e -> samePhone(e.phone(), phone)).findFirst().orElse(null);
+    }
+
     /** Digits only, so "+91 98765-43210" and "9876543210" compare alike. */
     public static String digits(String s) {
         return s == null ? "" : s.replaceAll("\\D", "");
