@@ -1,0 +1,55 @@
+/* HR: pay settings, payroll, loss of pay review, honour scores */
+.pa-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.pa-modes button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px 16px; border: 2px solid var(--line); border-radius: 18px; background: #fbfdf7; font-family: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.pa-modes button svg { color: #3f9a1b; margin-bottom: 4px; } .pa-modes small { color: var(--muted); font-size: 12px; }
+.pa-modes button.on { border-color: #3f9a1b; background: #f0f9e4; box-shadow: 0 0 0 3px rgba(74, 168, 31, .15); }
+.pa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.pa-num label { display: block; margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+.pa-num > div { display: flex; align-items: center; gap: 8px; }
+.pa-num input, .pa-num select { height: 44px; border-radius: 12px; }
+.pa-num > div input { max-width: 120px; } .pa-num em { font-style: normal; color: var(--muted); font-size: 12px; }
+.pa-num small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+.pa-lbl { margin: 14px 0 6px; }
+.pa-days button { padding: 6px 16px; font-size: 13px; }
+.pa-dim { opacity: .5; }
+.pa-example { margin: 14px 0 0; padding: 12px 16px 12px 30px; border-radius: 14px; background: #f3fae9; color: #2b4a18; font-size: 13px; display: grid; gap: 4px; }
+.pa-weights { display: grid; gap: 10px; }
+.pa-w { display: grid; grid-template-columns: 1fr 76px 48px; gap: 10px; align-items: center; }
+.pa-w div { display: flex; flex-direction: column; } .pa-w small { color: var(--muted); font-size: 12px; }
+.pa-w input { height: 40px; text-align: center; border-radius: 10px; } .pa-w span { font-weight: 600; color: #2f7d12; text-align: right; }
+.pa-bar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; margin: 12px 0 10px; background: #eef2e6; }
+.pa-levels { display: flex; gap: 8px; flex-wrap: wrap; }
+.lv, .pa-lv { padding: 2px 12px; border-radius: 99px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.lv.gold, .pa-lv.gold { background: #fdf0c0; color: #8a6100; } .lv.silver, .pa-lv.silver { background: #e8ecf2; color: #4a5568; }
+.lv.bronze, .pa-lv.bronze { background: #fde3cf; color: #9a4a12; } .lv.imp, .pa-lv.improve, .pa-lv.no_data { background: #fde2e2; color: #b42323; } .pa-lv.no_data { background: #eef0ea; color: #6b7a63; }
+.pa-save { position: sticky; bottom: 14px; }
+.pa-rule { display: flex; gap: 6px; flex-wrap: wrap; }
+.pa-gen { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pa-gen input, .pa-gen select { width: auto; height: 42px; border-radius: 12px; min-width: 150px; }
+.pa-gen .btn:disabled { opacity: .45; }
+.pa-table { font-size: 13px; } .pa-table th { white-space: nowrap; }
+.pa-lop { color: #b42323; font-weight: 600; } .pa-lop div { font-size: 11px; font-weight: 400; }
+.pa-sc { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 26px; border-radius: 99px; font-weight: 600; font-size: 12px; }
+.pa-sc.gold { background: #fdf0c0; color: #8a6100; } .pa-sc.silver { background: #e8ecf2; color: #4a5568; } .pa-sc.bronze { background: #fde3cf; color: #9a4a12; } .pa-sc.imp { background: #fde2e2; color: #b42323; }
+.lc-sel { border-color: #3f9a1b; background: #f3fae9; }
+.lc-q { flex: 1; border: 1.5px solid var(--line); background: #fff; border-radius: 12px; padding: 8px; font: 500 13px 'Poppins', sans-serif; cursor: pointer; color: var(--ink); }
+.lc-q.on { background: var(--brand-soft); border-color: #3f9a1b; color: #2f7d12; }
+.pa-day { grid-template-columns: 46px minmax(150px, 1.4fr) minmax(120px, 1.4fr) 100px 0 34px; }
+.pa-score { position: relative; display: grid; grid-template-columns: 28px 46px 1fr auto 56px; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: #fbfdf7; cursor: pointer; }
+.pa-rank { color: var(--muted); font-weight: 600; text-align: center; }
+.pa-ring { --p: 0%; width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: conic-gradient(var(--c, #3f9a1b) var(--p), #e8eddc 0); }
+.pa-ring b { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+.pa-ring.gold { --c: #e6a800; } .pa-ring.silver { --c: #8a97a8; } .pa-ring.bronze { --c: #d97b2d; } .pa-ring.imp { --c: #e0352b; }
+.pa-break { grid-column: 1 / -1; display: grid; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.pa-break > div { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr 52px; gap: 10px; align-items: center; font-size: 13px; }
+.pa-break small { display: block; color: var(--muted); font-size: 11px; }
+.pa-break b { text-align: right; }
+.pa-meter { height: 8px; border-radius: 99px; background: #eef2e6; overflow: hidden; } .pa-meter i { display: block; height: 100%; background: linear-gradient(90deg, #8ad04e, #3f9a1b); border-radius: 99px; }
+@media (max-width: 760px) {
+  .pa-score { grid-template-columns: 24px 42px 1fr 52px; } .pa-lv { display: none; }
+  .pa-day { grid-template-columns: 46px 1fr auto 34px !important; grid-template-areas: none !important; } .pa-day .at-times { display: none; }
+  .pa-break > div { grid-template-columns: 1fr 52px; } .pa-break .pa-meter { grid-column: 1 / -1; order: 3; }
+}
+/* the attendance page's phone layout names grid areas; these rows use plain columns */
+.pa-score > *, .pa-day > * { grid-area: auto !important; }
+@media (max-width: 760px) { .pa-day { grid-template-areas: none !important; grid-template-columns: 46px 1fr auto 34px !important; } .pa-day .at-hours { text-align: right; } .pa-score .at-who { min-width: 0; } }

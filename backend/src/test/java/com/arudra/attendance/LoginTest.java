@@ -45,16 +45,18 @@ class LoginTest {
     }
 
     @Test @Order(2)
-    void employeeSignsInWithIdPhoneAndPassword() throws Exception {
-        JsonNode ok = call("/api/auth/employee-login", null, Map.of("employeeCode", "l1", "phone", "9876543210", "password", "password123"), 200);
+    void employeeSignsInWithIdOrPhoneAndPassword() throws Exception {
+        // the employee ID alone (any case) is enough
+        JsonNode ok = call("/api/auth/employee-login", null, Map.of("employeeCode", "l1", "password", "password123"), 200);
         assertFalse(ok.get("token").asText().isBlank());
-        // country code and formatting do not matter
-        call("/api/auth/employee-login", null, Map.of("employeeCode", "L1", "phone", "+91 98765 43210", "password", "password123"), 200);
-        // each wrong part is refused with the same message
-        call("/api/auth/employee-login", null, Map.of("employeeCode", "L1", "phone", "9876543211", "password", "password123"), 401);
-        call("/api/auth/employee-login", null, Map.of("employeeCode", "L1", "phone", "9876543210", "password", "nope-nope"), 401);
-        call("/api/auth/employee-login", null, Map.of("employeeCode", "NOBODY", "phone", "9876543210", "password", "password123"), 401);
-        call("/api/auth/employee-login", null, Map.of("employeeCode", "L1", "phone", "", "password", "password123"), 401);
+        // so is the phone number alone; country code and formatting do not matter
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "9876543210", "password", "password123"), 200);
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "+91 98765 43210", "password", "password123"), 200);
+        // a wrong password, an unknown ID and an unknown phone are refused with the same status
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "L1", "password", "nope-nope"), 401);
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "NOBODY", "password", "password123"), 401);
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "9000000000", "password", "password123"), 401);
+        call("/api/auth/employee-login", null, Map.of("employeeCode", "", "password", "password123"), 401);
     }
 
     @Test @Order(3)

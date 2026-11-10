@@ -34,6 +34,11 @@ export const IPhone = (p: P) => <Svg {...p}><rect x="7" y="2.500" width="10" hei
 export const IMenu = (p: P) => <Svg {...p}><path d="M4 7h16M4 12h16M4 17h16" /></Svg>
 export const IFace = (p: P) => <Svg {...p}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><path d="M9 10v1M15 10v1M9.500 15c.7.7 1.500 1 2.500 1s1.800-.3 2.500-1" /></Svg>
 export const IClock = (p: P) => <Svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Svg>
+export const IX = (p: P) => <Svg {...p}><path d="M6 6l12 12M18 6L6 18" /></Svg>
+export const IHeart = (p: P) => <Svg {...p}><path d="M12 20s-7-4.500-7-10a4 4 0 0 1 7-2.500A4 4 0 0 1 19 10c0 5.500-7 10-7 10z" /></Svg>
+export const ISun = (p: P) => <Svg {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2.500v2.500M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800" /></Svg>
+export const IBriefcase = (p: P) => <Svg {...p}><rect x="3" y="7" width="18" height="13" rx="2.500" /><path d="M9 7V5a1.500 1.500 0 0 1 1.500-1.500h3A1.500 1.500 0 0 1 15 5v2M3 13h18" /></Svg>
+export const ISend = (p: P) => <Svg {...p}><path d="M21 3L10 14M21 3l-7 18-4-7-7-4z" /></Svg>
 export const IEdit = (p: P) => <Svg {...p}><path d="M4 20h4L19 9l-4-4L4 16z" /></Svg>
 
 /** Leafy corner decoration used on the green screens. */

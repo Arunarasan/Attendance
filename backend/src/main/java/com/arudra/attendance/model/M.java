@@ -56,12 +56,14 @@ public final class M {
     public record Payslip(long id, long runId, long employeeId, String period, BigDecimal regularHours,
                           BigDecimal overtimeHours, BigDecimal gross, BigDecimal adjustments, BigDecimal net,
                           BigDecimal paidLeaveDays, BigDecimal unpaidLeaveDays, BigDecimal holidayDays, BigDecimal creditHours,
-                          BigDecimal deductions, String deductionDetail) {}
+                          BigDecimal deductions, String deductionDetail, BigDecimal lopDays, BigDecimal lopAmount,
+                          BigDecimal allowances, BigDecimal bonus, String payMode, Integer score) {}
 
     public record PayslipView(long id, long runId, long employeeId, String employeeName, String period,
                               BigDecimal regularHours, BigDecimal overtimeHours, BigDecimal gross,
                               BigDecimal adjustments, BigDecimal net, BigDecimal paidLeaveDays, BigDecimal unpaidLeaveDays,
-                              BigDecimal holidayDays, BigDecimal creditHours, BigDecimal deductions, String deductionDetail) {}
+                              BigDecimal holidayDays, BigDecimal creditHours, BigDecimal deductions, String deductionDetail,
+                              BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, String payMode, Integer score) {}
 
     public record Holiday(long id, LocalDate holidayDate, String name, boolean paid) {}
 

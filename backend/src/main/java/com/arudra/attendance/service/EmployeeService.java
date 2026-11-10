@@ -81,6 +81,16 @@ public class EmployeeService {
         return x.substring(x.length() - n).equals(y.substring(y.length() - n));
     }
 
+    /** An employee changing their own password; the current one must match. */
+    public void changeOwnPassword(long id, String current, String next) {
+        M.Emp e = db.sql("SELECT id, employee_code, name, email, phone, password_hash, role, active, hourly_rate, base_salary, attendance_method, device_binding_mode FROM employees WHERE id = ?")
+                .param(id).query(M.Emp.class).optional().orElse(null);
+        if (e == null || !passwordMatches(e, current)) throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST, "BAD_PASSWORD", "Current password is wrong");
+        if (next == null || next.length() < 8) throw ApiException.bad("New password must be at least 8 characters");
+        if (next.equals(current)) throw ApiException.bad("New password must be different from the current one");
+        db.sql("UPDATE employees SET password_hash = ? WHERE id = ?").param(encoder.encode(next)).param(id).update();
+    }
+
     public boolean passwordMatches(M.Emp e, String raw) {
         return raw != null && encoder.matches(raw, e.passwordHash());
     }

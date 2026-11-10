@@ -22,6 +22,7 @@ import java.util.Map;
 public class MeController {
     public record Login(String email, String password) {}
     public record EmployeeLogin(String employeeCode, String phone, String password) {}
+    public record PasswordBody(String currentPassword, String newPassword) {}
     public record PunchBody(Double lat, Double lng, Double accuracy, String nonce, String signature, double[] descriptor, String bssid) {}
     public record LeaveBody(Long leaveTypeId, LocalDate startDate, LocalDate endDate, Boolean halfDay, String reason) {}
     public record FaceBody(java.util.List<double[]> descriptors) {}
@@ -39,10 +40,12 @@ public class MeController {
     private final FaceService faces;
     private final LeaveService leave;
     private final CalendarService calendar;
+    private final DayRulesService dayRules;
 
     public MeController(EmployeeService employees, JwtService jwt, TimeService time, DeviceService devices,
                         CorrectionService corrections, PayrollService payroll, ClientIp clientIp, LoginThrottle throttle, FaceService faces,
-                        LeaveService leave, CalendarService calendar) {
+                        LeaveService leave, CalendarService calendar, DayRulesService dayRules) {
+        this.dayRules = dayRules;
         this.leave = leave;
         this.calendar = calendar;
         this.faces = faces;
@@ -88,6 +91,23 @@ public class MeController {
         }
         throttle.ok(in.employeeCode(), ip);
         return Map.of("token", jwt.issue(e.id(), e.role()), "employee", employees.get(e.id()));
+    }
+
+    @PostMapping("/me/password")
+    public Map<String, String> changePassword(@AuthenticationPrincipal Actor a, @RequestBody PasswordBody b, jakarta.servlet.http.HttpServletRequest req) {
+        String key = "pw:" + a.employeeId();
+        String ip = clientIp.of(req);
+        throttle.check(key, ip);
+        try { employees.changeOwnPassword(a.employeeId(), b.currentPassword(), b.newPassword()); }
+        catch (ApiException e) { if ("BAD_PASSWORD".equals(e.code())) throttle.fail(key, ip); throw e; }
+        throttle.ok(key, ip);
+        return Map.of("status", "CHANGED");
+    }
+
+    /** The employee's own honour score for a month (default: this month). */
+    @GetMapping("/me/score")
+    public DayRulesService.Score myScore(@AuthenticationPrincipal Actor a, @RequestParam(required = false) String month) {
+        return dayRules.score(a.employeeId(), PayPolicyController.parse(month == null ? YearMonth.now().toString() : month));
     }
 
     @GetMapping("/nonce")
