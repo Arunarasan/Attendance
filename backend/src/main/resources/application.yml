@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/attendance;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  jwt-secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+  jwt-hours: 12
+  seed-admin-email: ${APP_ADMIN_EMAIL:admin@example.com}
+  seed-admin-password: ${APP_ADMIN_PASSWORD:ChangeMe123!}
+  cors-origins: ${APP_CORS:http://localhost:5173}
+  # Only true behind a reverse proxy you control: the office-network check then trusts X-Forwarded-For.
+  trust-proxy: ${APP_TRUST_PROXY:false}
+  # Standard hours, weekly off days, overtime rate and default pay mode are edited by HR (HR console, Pay settings).
+  attendance:
+    geo-grace-meters: 20
+    max-accuracy-margin-meters: 250
+    kiosk-min-gap-seconds: 120
+    face-confident: 0.42
+    face-weak: 0.50
+    face-margin: 0.04
+    # Phone punches need a matching face, and registering/pairing a phone needs one. Failures flag (punches) or refuse (registration).
+    phone-face-required: ${APP_PHONE_FACE:true}
+    # Confident, unflagged face punches add a new template when the face looks different from every stored one (other light, angle).
+    # This is how recognition keeps adapting to low light. Maximum distance for learning; 0 turns it off.
+    face-learn: ${APP_FACE_LEARN:0.34}

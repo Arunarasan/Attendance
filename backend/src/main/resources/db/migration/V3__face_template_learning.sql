@@ -1,0 +1,2 @@
+ALTER TABLE employee_face_templates ADD COLUMN auto_learned BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE employee_face_templates ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
