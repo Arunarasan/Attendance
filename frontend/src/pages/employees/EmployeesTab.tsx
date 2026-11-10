@@ -30,7 +30,7 @@ export default function EmployeesTab({ meId }: { meId: number }) {
       .filter(e => status === 'ALL' || (status === 'ACTIVE') === e.active)
       .filter(e => role === 'ALL' || e.role === role)
       .filter(e => method === 'ALL' || e.attendanceMethod === method)
-      .filter(e => !s || e.name.toLowerCase().includes(s) || e.employeeCode.toLowerCase().includes(s) || e.email.toLowerCase().includes(s) || (digits.length >= 3 && e.phone.includes(digits)))
+      .filter(e => !s || e.name.toLowerCase().includes(s) || e.employeeCode.toLowerCase().includes(s) || (e.email ?? '').toLowerCase().includes(s) || (digits.length >= 3 && (e.phone ?? '').includes(digits)))
       .sort((a, b) => a[sort.key].localeCompare(b[sort.key], undefined, { sensitivity: 'base' }) * sort.dir)
   }, [data, q, role, method, status, sort])
 

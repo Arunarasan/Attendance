@@ -10,7 +10,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
   const [tab, setTab] = useState<Tab>('profile')
   const self = emp.id === meId
   const [p, setP] = useState({
-    name: emp.name, employeeCode: emp.employeeCode, email: emp.email, phone: emp.phone, role: emp.role,
+    name: emp.name, employeeCode: emp.employeeCode, email: emp.email ?? '', phone: emp.phone ?? '', role: emp.role,
     attendanceMethod: emp.attendanceMethod, deviceBindingMode: emp.deviceBindingMode ?? '',
     hourlyRate: String(emp.hourlyRate ?? 0), baseSalary: String(emp.baseSalary ?? 0),
   })
@@ -25,17 +25,17 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
   const set = (k: string) => (e: any) => setP({ ...p, [k]: e.target.value })
 
   const dirty = (Object.keys(p) as (keyof typeof p)[]).some(k => p[k] !== ({
-    name: emp.name, employeeCode: emp.employeeCode, email: emp.email, phone: emp.phone, role: emp.role,
+    name: emp.name, employeeCode: emp.employeeCode, email: emp.email ?? '', phone: emp.phone ?? '', role: emp.role,
     attendanceMethod: emp.attendanceMethod, deviceBindingMode: emp.deviceBindingMode ?? '',
     hourlyRate: String(emp.hourlyRate ?? 0), baseSalary: String(emp.baseSalary ?? 0),
   })[k]) || pw !== ''
-  const idChanged = p.employeeCode.trim() !== emp.employeeCode || p.email.trim().toLowerCase() !== emp.email.toLowerCase() || p.phone.replace(/\D/g, '') !== emp.phone.replace(/\D/g, '')
+  const idChanged = p.employeeCode.trim() !== emp.employeeCode || p.email.trim().toLowerCase() !== (emp.email ?? '').toLowerCase() || p.phone.replace(/\D/g, '') !== (emp.phone ?? '').replace(/\D/g, '')
 
   const errors: Record<string, string> = {}
   if (!p.name.trim()) errors.name = 'Required'
   if (!p.employeeCode.trim()) errors.employeeCode = 'Required'
   if (!/^\S+@\S+\.\S+$/.test(p.email.trim())) errors.email = 'Enter a valid email'
-  if (p.phone.replace(/\D/g, '').length < 7) errors.phone = 'At least 7 digits'
+  if (p.phone && p.phone.replace(/\D/g, '').length < 7) errors.phone = 'At least 7 digits'
   if (Number(p.hourlyRate) < 0) errors.hourlyRate = 'Cannot be negative'
   if (Number(p.baseSalary) < 0) errors.baseSalary = 'Cannot be negative'
   if (pw && pw.length < 8) errors.password = 'At least 8 characters'
