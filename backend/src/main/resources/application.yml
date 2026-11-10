@@ -12,7 +12,7 @@ spring:
 
 app:
   jwt-secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
-  jwt-hours: 12
+  jwt-hours: 720
   seed-admin-email: ${APP_ADMIN_EMAIL:admin@example.com}
   seed-admin-password: ${APP_ADMIN_PASSWORD:ChangeMe123!}
   cors-origins: ${APP_CORS:http://localhost:5173}

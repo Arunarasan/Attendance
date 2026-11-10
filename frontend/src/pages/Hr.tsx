@@ -1,7 +1,10 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, ReactNode, useEffect, useState } from 'react'
 import { blobUrl, del, fmtDateTime, fmtHours, fmtTime, get, post, put, today } from '../lib/api'
 import type { Me } from '../App'
 import EmployeesTab from './employees/EmployeesTab'
+import Dashboard from './Dashboard'
+import { ICal, ICalCheck, ICheckSq, IBell, IDevice, IGear, IHome, IMenu, IPin, IUsers, IWallet, Leaves } from '../components/icons'
+import './hr.css'
 
 function useLoad<T>(path: string, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null)
@@ -363,19 +366,64 @@ function Payroll() {
   </>)
 }
 
-const TABS: [string, string, () => JSX.Element][] = [
-  ['approve', 'To approve', Approvals], ['photo', 'Photo requests', PhotoRequests], ['register', 'Register', Register], ['emps', 'Employees', () => <></>],
-  ['loc', 'Locations', Locations], ['net', 'WiFi', Networks], ['fix', 'Corrections', Corrections], ['phones', 'Phones', Phones],
-  ['kiosks', 'Kiosks', Kiosks], ['leave', 'Leave', LeaveAdmin], ['holidays', 'Holidays', Holidays], ['pay', 'Payroll', Payroll], ['paycfg', 'Pay settings', PaySettings],
+const TABS: Record<string, () => JSX.Element> = {
+  approve: Approvals, photo: PhotoRequests, register: Register, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
+  kiosks: Kiosks, leave: LeaveAdmin, holidays: Holidays, pay: Payroll, paycfg: PaySettings,
+}
+
+type Group = { key: string; label: string; icon: ReactNode; tabs: [string, string][] }
+const GROUPS: Group[] = [
+  { key: 'dash', label: 'Dashboard', icon: <IHome />, tabs: [] },
+  { key: 'emps', label: 'Employees', icon: <IUsers />, tabs: [] },
+  { key: 'att', label: 'Attendance', icon: <ICalCheck />, tabs: [['register', 'Register'], ['fix', 'Corrections']] },
+  { key: 'leave', label: 'Leave & Holidays', icon: <ICal />, tabs: [['leave', 'Leave'], ['holidays', 'Holidays']] },
+  { key: 'appr', label: 'Approvals', icon: <ICheckSq />, tabs: [['approve', 'To approve'], ['photo', 'Photo requests']] },
+  { key: 'loc', label: 'Locations', icon: <IPin />, tabs: [['loc', 'Locations'], ['net', 'WiFi']] },
+  { key: 'dev', label: 'Devices / Kiosks', icon: <IDevice />, tabs: [['phones', 'Phones'], ['kiosks', 'Kiosks']] },
+  { key: 'pay', label: 'Payroll', icon: <IWallet />, tabs: [['pay', 'Payroll']] },
+  { key: 'set', label: 'Settings', icon: <IGear />, tabs: [['paycfg', 'Pay settings']] },
 ]
+const groupOf = (tab: string) => GROUPS.find(g => g.key === tab || g.tabs.some(t => t[0] === tab)) ?? GROUPS[0]
 
 export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
-  const [tab, setTab] = useState('approve')
-  const Cur = TABS.find(t => t[0] === tab)![2]
-  return (<>
-    <header className="top"><b>HR · {me.name}</b><button className="btn ghost" onClick={onLogout}>Sign out</button></header>
-    <div className="wrap">
-      <div className="tabs">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-      {tab === 'emps' ? <EmployeesTab meId={me.id} /> : <Cur />}
-    </div></>)
+  const [tab, setTab] = useState('dash')
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(0)
+  useEffect(() => { get<{ count: number }>('/api/hr/attendance/pending/count').then(r => setPending(r.count)).catch(() => {}) }, [tab])
+  const go = (t: string) => { setTab(t); setOpen(false) }
+  const group = groupOf(tab)
+  const Cur = TABS[tab]
+  const hour = new Date().getHours()
+  const hello = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
+  const first = me.name.split(' ')[0]
+  const initials = me.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const title = tab === 'dash' ? <>{hello}, {first} <span aria-hidden="true">👋</span></> : group.label
+  const sub = tab === 'dash' ? "Here's your organization overview for today." : 'Manage ' + group.label.toLowerCase() + ' for your organization.'
+  return (
+    <div className={`hx${open ? ' open' : ''}`}>
+      <aside className="hx-side">
+        <div className="hx-brand"><span className="logo"><ICalCheck /></span><h1>Attendance<span>Pro</span></h1></div>
+        <nav className="hx-nav">
+          {GROUPS.map(g => (
+            <button key={g.key} className={group.key === g.key ? 'on' : ''} onClick={() => go(g.tabs[0]?.[0] ?? g.key)}>
+              {g.icon}{g.label}{g.key === 'appr' && pending > 0 && <span className="badge">{pending}</span>}
+            </button>))}
+        </nav>
+        <Leaves className="hx-leaves" />
+      </aside>
+      <div className="hx-scrim" onClick={() => setOpen(false)} />
+      <div className="hx-main">
+        <header className="hx-top">
+          <button className="hx-burger" onClick={() => setOpen(true)} aria-label="Open menu"><IMenu /></button>
+          <div className="hx-hello"><h2>{title}</h2><p>{sub}</p></div>
+          <button className="hx-bell" onClick={() => go('approve')} aria-label={`${pending} pending approvals`}><IBell />{pending > 0 && <i>{pending}</i>}</button>
+          <div className="hx-user"><span className="av">{initials}</span><span><b>{me.name}</b><small>{me.role === 'ADMIN' ? 'Admin' : 'HR'}</small></span><button onClick={onLogout}>Sign out</button></div>
+        </header>
+        <div className="hx-body">
+          {group.tabs.length > 1 && <div className="tabs">{group.tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>}
+          {tab === 'dash' ? <Dashboard go={go} /> : tab === 'emps' ? <EmployeesTab meId={me.id} /> : Cur ? <Cur /> : null}
+        </div>
+      </div>
+    </div>
+  )
 }

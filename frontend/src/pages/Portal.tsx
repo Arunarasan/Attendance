@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fmtDateTime, fmtHours, fmtTime, get, post, today } from '../lib/api'
 import { getBestPosition } from '../lib/geo'
@@ -6,6 +6,8 @@ import { hasLocalKey, publicKeyB64, signNonce, wifiBssid } from '../lib/deviceKe
 import FaceCapture from '../components/FaceCapture'
 import FaceEnrol from './FaceEnrol'
 import type { Me } from '../App'
+import { IArrowR, IBack, IBell, ICal, ICalCheck, ICalPlus, ICheckCircle, IChevR, IClock, IDoc, IFace, IFinger, IHome, IPhone, IUser, Leaves } from '../components/icons'
+import './portal.css'
 
 type Session = { id: number; clockIn: string; clockOut: string | null; breakStarted: string | null; breakMinutes: number; approvalStatus: string; flagged: boolean; flagReason: string | null }
 type TodayData = { isOpen: boolean; onBreak: boolean; sessions: Session[]; days: { workedMinutes: number; overtimeMinutes: number }[] }
@@ -54,49 +56,103 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
 
   const day = data?.days[0]
   if (askFace) return <FaceCapture title="Confirm it's you" onDone={d => askFace(d)} onCancel={() => askFace(null)} />
-  return (
-    <div className="card">
-      <div className="clock">{now.toLocaleTimeString()}</div>
-      {data && (
-        <div className="grid">
-          {!data.isOpen && <button className="btn big" disabled={busy} onClick={() => punch('in')}>{data.sessions.length ? 'Clock in again' : 'Clock in'}</button>}
-          {data.isOpen && <button className="btn big danger" disabled={busy} onClick={() => punch('out')}>Clock out</button>}
-          {data.isOpen && !data.onBreak && <button className="btn big ghost" disabled={busy} onClick={() => punch('break-start')}>Start break</button>}
-          {data.isOpen && data.onBreak && <button className="btn big ghost" disabled={busy} onClick={() => punch('break-end')}>End break</button>}
-        </div>
-      )}
-      {err && <div className="err">{err}</div>}
-      {note && <div className="msg">{note}</div>}
-      {day && <p className="muted">Today paid so far: {fmtHours(day.workedMinutes)}{day.overtimeMinutes > 0 && ` (overtime ${fmtHours(day.overtimeMinutes)})`}</p>}
-      {data?.sessions.map(s => (
-        <div key={s.id} className="row" style={{ justifyContent: 'space-between', borderTop: '1px solid var(--line)', padding: '6px 0' }}>
-          <span>{fmtTime(s.clockIn)} → {s.clockOut ? fmtTime(s.clockOut) : 'open'}{s.breakMinutes > 0 && ` · break ${s.breakMinutes}m`}</span>
-          <span className={`pill ${s.approvalStatus === 'APPROVED' ? 'ok' : 'warn'}`} title={s.flagReason ?? ''}>{s.approvalStatus.toLowerCase()}</span>
-        </div>
+  const open = !!data?.isOpen
+  const last = data?.sessions[data.sessions.length - 1]
+  return (<>
+    <section className="pm-card pm-today">
+      <div className="pm-today-l">
+        <h3>Today's Attendance</h3>
+        <div className="pm-time">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        {last && <div className="pm-sub">{fmtTime(last.clockIn)}{last.clockOut ? ` → ${fmtTime(last.clockOut)}` : ''}</div>}
+        <span className={`pm-status ${open ? 'in' : ''}`}><ICheckCircle size={16} />{!data ? '…' : open ? (data.onBreak ? 'On break' : 'Checked In') : data.sessions.length ? 'Checked Out' : 'Not checked in'}</span>
+      </div>
+      {data && <button className={`pm-punch ${open ? 'out' : ''}`} disabled={busy} onClick={() => punch(open ? 'out' : 'in')}>
+        <IFinger size={38} /><span>{open ? 'Check Out' : data.sessions.length ? 'Check In again' : 'Check In'}</span></button>}
+    </section>
+    {data?.isOpen && <button className="pm-break" disabled={busy} onClick={() => punch(data.onBreak ? 'break-end' : 'break-start')}>{data.onBreak ? 'End break' : 'Start break'}</button>}
+    {err && <div className="err">{err}</div>}
+    {note && <div className="msg">{note}</div>}
+    {day && <p className="pm-muted">Paid so far today: {fmtHours(day.workedMinutes)}{day.overtimeMinutes > 0 && ` (overtime ${fmtHours(day.overtimeMinutes)})`}</p>}
+    {data && data.sessions.length > 0 && <section className="pm-card pm-list">
+      {data.sessions.map(s => (
+        <div key={s.id} className="pm-li"><span className="pm-ok"><ICheckCircle size={20} /></span>
+          <span className="pm-li-t">{fmtTime(s.clockIn)} → {s.clockOut ? fmtTime(s.clockOut) : 'open'}{s.breakMinutes > 0 && ` · break ${s.breakMinutes}m`}</span>
+          <span className={`pill ${s.approvalStatus === 'APPROVED' ? 'ok' : 'warn'}`} title={s.flagReason ?? ''}>{s.approvalStatus.toLowerCase()}</span></div>
       ))}
-    </div>
+    </section>}
+  </>)
+}
+
+const monthOf = (offset: number) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
+
+function Donut({ present, leave, total }: { present: number; leave: number; total: number }) {
+  const r = 52, c = 2 * Math.PI * r
+  const seg: [number, string][] = [[present, '#3f9a1b'], [leave, '#f5c542']]
+  let off = 0
+  return (
+    <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true">
+      <circle cx="75" cy="75" r={r} fill="none" stroke="#eef2e6" strokeWidth="16" />
+      {total > 0 && seg.map(([n, col], i) => { const len = (n / total) * c; const el = n > 0 ? <circle key={i} cx="75" cy="75" r={r} fill="none" stroke={col} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 2)} ${c}`} strokeDashoffset={-off} transform="rotate(-90 75 75)" /> : null; off += len; return el })}
+      <text x="75" y="76" textAnchor="middle" style={{ font: '700 22px Poppins, sans-serif', fill: '#1f2a1c' }}>{total ? ((present / total) * 100).toFixed(1) : '0'}%</text>
+      <text x="75" y="95" textAnchor="middle" style={{ font: '12px Poppins, sans-serif', fill: '#5d6b55' }}>Attendance</text>
+    </svg>
   )
 }
 
-function Timesheet({ version }: { version: number }) {
-  const [month, setMonth] = useState(today().slice(0, 7))
+function useMonth(month: string, version: number) {
   const [days, setDays] = useState<any[]>([])
-  useEffect(() => { get(`/api/me/timesheet?month=${month}`).then(r => setDays(r.days)) }, [month, version])
+  const [leave, setLeave] = useState(0)
+  useEffect(() => {
+    get(`/api/me/timesheet?month=${month}`).then(r => setDays(r.days)).catch(() => setDays([]))
+    get('/api/me/leave').then((l: any[]) => setLeave(l.filter(x => x.status === 'APPROVED' && String(x.startDate).startsWith(month)).reduce((a, x) => a + Number(x.days), 0))).catch(() => setLeave(0))
+  }, [month, version])
+  return { days, leave }
+}
+
+function MonthStats({ version, onAll }: { version: number; onAll: () => void }) {
+  const { days, leave } = useMonth(monthOf(0), version)
+  const ot = days.reduce((a, d) => a + d.overtimeMinutes, 0)
+  return (<>
+    <div className="pm-h"><h3>This Month</h3><a onClick={onAll}>View All <IArrowR size={14} /></a></div>
+    <div className="pm-stats">
+      <div className="g"><b>{days.length}</b><span>Present</span></div>
+      <div className="y"><b>{Number.isInteger(leave) ? leave : leave.toFixed(1)}</b><span>Leave</span></div>
+      <div className="r"><b>{Math.round(ot / 60)}h</b><span>Overtime</span></div>
+    </div>
+  </>)
+}
+
+function Timesheet({ version }: { version: number }) {
+  const [range, setRange] = useState<'this' | 'last' | 'custom'>('this')
+  const [custom, setCustom] = useState(monthOf(0))
+  const month = range === 'this' ? monthOf(0) : range === 'last' ? monthOf(-1) : custom
+  const { days, leave } = useMonth(month, version)
   const total = days.reduce((a, d) => a + d.workedMinutes, 0)
   const ot = days.reduce((a, d) => a + d.overtimeMinutes, 0)
-  return (
-    <div className="card">
-      <h2>Timesheet</h2>
-      <input type="month" value={month} onChange={e => setMonth(e.target.value)} style={{ maxWidth: 200 }} />
-      <p className="muted">Paid hours {fmtHours(total)} · overtime {fmtHours(ot)}</p>
-      <div className="scroll"><table>
-        <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Break</th><th>Paid</th><th>OT</th></tr></thead>
-        <tbody>{days.map(d => (
-          <tr key={d.workDate}><td>{d.workDate}</td><td>{fmtTime(d.checkIn)}</td><td>{fmtTime(d.checkOut)}</td><td>{d.breakMinutes}m</td><td>{fmtHours(d.workedMinutes)}</td><td>{fmtHours(d.overtimeMinutes)}</td></tr>
-        ))}</tbody>
-      </table></div>
+  const rows = [...days].sort((a, b) => String(b.workDate).localeCompare(String(a.workDate)))
+  return (<>
+    <div className="pm-seg">
+      {([['this', 'This Month'], ['last', 'Last Month'], ['custom', 'Custom']] as const).map(([k, l]) => <button key={k} className={range === k ? 'on' : ''} onClick={() => setRange(k)}>{l}</button>)}
     </div>
-  )
+    {range === 'custom' && <input type="month" className="pm-month" value={custom} onChange={e => setCustom(e.target.value)} />}
+    <section className="pm-card pm-donut">
+      <Donut present={days.length} leave={leave} total={days.length + leave} />
+      <div className="pm-legend">
+        <div><i style={{ background: '#3f9a1b' }} />Present<b>{days.length}</b></div>
+        <div><i style={{ background: '#f5c542' }} />Leave<b>{Number.isInteger(leave) ? leave : leave.toFixed(1)}</b></div>
+        <div><i style={{ background: '#f4a3a3' }} />Overtime<b>{fmtHours(ot)}</b></div>
+      </div>
+    </section>
+    <div className="pm-h"><h3>Attendance Log</h3><span className="pm-muted">Paid {fmtHours(total)}</span></div>
+    <section className="pm-card pm-list">
+      {rows.length === 0 && <p className="pm-muted" style={{ margin: 0 }}>No attendance this month.</p>}
+      {rows.map(d => (
+        <div key={d.workDate} className="pm-li"><span className="pm-ok"><ICheckCircle size={20} /></span>
+          <span className="pm-li-t">{new Date(d.workDate + 'T00:00').toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short' })}</span>
+          <span className="pm-li-r">{fmtTime(d.checkIn)} – {d.checkOut ? fmtTime(d.checkOut) : '--'}</span></div>
+      ))}
+    </section>
+  </>)
 }
 
 function Corrections() {
@@ -175,7 +231,7 @@ function Leave() {
         <label>Reason</label><input value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
         <p className="muted">Weekly offs and holidays inside the range are not counted.</p>
         {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
-        <p><button className="btn">Send request</button></p>
+        <p><button className="btn">Submit Request</button></p>
       </form>
       <table><thead><tr><th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th></th></tr></thead>
         <tbody>{reqs.map(r => <tr key={r.id}><td>{r.leaveName}</td><td>{r.startDate}{r.endDate !== r.startDate && ` → ${r.endDate}`}{r.halfDay && ' (half)'}</td><td>{num(r.days)}</td>
@@ -239,25 +295,69 @@ function MyFace({ me }: { me: Me }) {
   )
 }
 
+type Sub = null | 'fix' | 'pay' | 'face' | 'phone'
+const SUBS: [Exclude<Sub, null>, string, ReactNode][] = [
+  ['fix', 'Time Corrections', <IClock key="c" size={22} />], ['pay', 'Payslips', <IDoc key="d" size={22} />],
+  ['face', 'My Face', <IFace key="f" size={22} />], ['phone', 'My Phone', <IPhone key="p" size={22} />],
+]
+
+function Profile({ me, onLogout, open }: { me: Me; onLogout: () => void; open: (s: Sub) => void }) {
+  const initials = me.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (<>
+    <section className="pm-prof"><span className="pm-av big">{initials}</span><h2>{me.name}</h2><p>{me.employeeCode}</p></section>
+    <section className="pm-card pm-menu">
+      {SUBS.map(([k, l, ic]) => <button key={k} onClick={() => open(k)}>{ic}<span>{l}</span><IChevR size={18} /></button>)}
+      <Link to="/punch" className="pm-menu-a"><IFinger size={22} /><span>Face punch</span><IChevR size={18} /></Link>
+    </section>
+    <button className="pm-signout" onClick={onLogout}>Sign Out</button>
+  </>)
+}
+
 export default function Portal({ me, onLogout }: { me: Me; onLogout: () => void }) {
-  const [tab, setTab] = useState('clock')
+  const [tab, setTab] = useState<'home' | 'att' | 'leave' | 'me'>('home')
+  const [sub, setSub] = useState<Sub>(null)
   const [version, setVersion] = useState(0)
+  const [pendingCount, setPendingCount] = useState(0)
+  useEffect(() => { get<any[]>('/api/me/leave').then(l => setPendingCount(l.filter(x => x.status === 'PENDING').length)).catch(() => {}) }, [tab])
+  const hour = new Date().getHours()
+  const hello = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
+  const initials = me.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const pick = (t: typeof tab) => { setTab(t); setSub(null) }
+  const title = sub ? SUBS.find(x => x[0] === sub)![1] : tab === 'att' ? 'My Attendance' : tab === 'leave' ? 'Leave Request' : tab === 'me' ? 'My Profile' : ''
+  const NAV: [typeof tab, string, ReactNode][] = [['home', 'Home', <IHome key="h" />], ['att', 'Attendance', <ICalCheck key="a" />], ['leave', 'Leave', <ICal key="l" />], ['me', 'Profile', <IUser key="u" />]]
   return (
-    <>
-      <header className="top"><b>Hi, {me.name}</b><span className="row"><Link to="/punch">Face punch</Link><button className="btn ghost" onClick={onLogout}>Sign out</button></span></header>
-      <div className="wrap">
-        <div className="tabs">
-          {[['clock', 'Clock'], ['sheet', 'Timesheet'], ['fix', 'Corrections'], ['leave', 'Leave'], ['pay', 'Payslips'], ['face', 'My face'], ['phone', 'My phone']].map(([k, l]) =>
-            <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
-        </div>
-        {tab === 'clock' && <ClockWidget onChange={() => setVersion(v => v + 1)} />}
-        {tab === 'sheet' && <Timesheet version={version} />}
-        {tab === 'fix' && <Corrections />}
-        {tab === 'leave' && <Leave />}
-        {tab === 'pay' && <Payslips />}
-        {tab === 'face' && <MyFace me={me} />}
-        {tab === 'phone' && <Phone />}
-      </div>
-    </>
+    <div className="pm">
+      <Leaves className="pm-leaves" />
+      <header className="pm-head">
+        {title ? <>
+          <button className="pm-back" onClick={() => sub ? setSub(null) : pick('home')} aria-label="Back"><IBack /></button><h1>{title}</h1><span style={{ width: 40 }} />
+        </> : <>
+          <span className="pm-av">{initials}</span>
+          <div className="pm-hello"><b>{hello}, {me.name.split(' ')[0]} <span aria-hidden="true">👋</span></b><small>Employee · {me.employeeCode}</small></div>
+          <button className="pm-bell" onClick={() => pick('leave')} aria-label="Leave requests"><IBell />{pendingCount > 0 && <i />}</button>
+        </>}
+      </header>
+      <main className="pm-main">
+        {tab === 'home' && !sub && <>
+          <ClockWidget onChange={() => setVersion(v => v + 1)} />
+          <div className="pm-tiles">
+            <button onClick={() => pick('att')}><ICalCheck size={30} />My<br />Attendance</button>
+            <button onClick={() => pick('leave')}><ICalPlus size={30} />Leave<br />Request</button>
+            <button onClick={() => { setTab('me'); setSub('fix') }}><IClock size={30} />Time<br />Correction</button>
+          </div>
+          <MonthStats version={version} onAll={() => pick('att')} />
+        </>}
+        {tab === 'att' && !sub && <Timesheet version={version} />}
+        {tab === 'leave' && !sub && <Leave />}
+        {tab === 'me' && !sub && <Profile me={me} onLogout={onLogout} open={setSub} />}
+        {sub === 'fix' && <Corrections />}
+        {sub === 'pay' && <Payslips />}
+        {sub === 'face' && <MyFace me={me} />}
+        {sub === 'phone' && <Phone />}
+      </main>
+      <nav className="pm-nav">
+        {NAV.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => pick(k)}>{ic}<span>{l}</span></button>)}
+      </nav>
+    </div>
   )
 }

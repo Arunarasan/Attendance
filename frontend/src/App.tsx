@@ -29,8 +29,8 @@ function Shell() {
 
   if (!ready) return <div className="wrap muted">Loading…</div>
   const isHr = me?.role === 'HR' || me?.role === 'ADMIN'
-  // Not signed in: the landing page is the face punch (no login needed). Sign-in is only for timesheet and payslips.
-  const loginPath = '/punch'
+  // Not signed in: go to the sign-in page (face punch is a button there). Signed in: straight to home, no sign-in again.
+  const loginPath = '/login'
   const logout = () => { setAuth(null); setMe(null); nav(loginPath) }
 
   return (
@@ -40,7 +40,7 @@ function Shell() {
       <Route path="/kiosk" element={<Kiosk />} />
       <Route path="/app/pair" element={me ? <Navigate to="/" /> : <AppPair onDone={load} />} />
       <Route path="/hr/*" element={me ? (isHr ? <Hr me={me} onLogout={logout} /> : <Navigate to="/" />) : <Navigate to={loginPath} />} />
-      <Route path="/*" element={me ? <Portal me={me} onLogout={logout} /> : <Navigate to={loginPath} />} />
+      <Route path="/*" element={me ? (isHr && window.location.pathname === '/' ? <Navigate to="/hr" /> : <Portal me={me} onLogout={logout} />) : <Navigate to={loginPath} />} />
     </Routes>
   )
 }
