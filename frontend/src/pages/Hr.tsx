@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { blobUrl, del, fmtDateTime, fmtHours, fmtTime, get, post, put, today } from '../lib/api'
 import type { Me } from '../App'
-import FaceEnrol from './FaceEnrol'
+import EmployeesTab from './employees/EmployeesTab'
 
 function useLoad<T>(path: string, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null)
@@ -74,42 +74,6 @@ function Register() {
     </div></>)
 }
 
-function Employees() {
-  const { data, reload } = useLoad<any[]>('/api/hr/employees')
-  const empty = { employeeCode: '', name: '', email: '', phone: '', password: '', role: 'EMPLOYEE', hourlyRate: '0', baseSalary: '0', attendanceMethod: 'GEO' }
-  const [f, setF] = useState(empty)
-  const [err, setErr] = useState('')
-  const [info, setInfo] = useState('')
-  const [enrol, setEnrol] = useState<{ id: number; name: string } | null>(null)
-  async function add(e: FormEvent) {
-    e.preventDefault(); setErr('')
-    try { await post('/api/hr/employees', { ...f, hourlyRate: Number(f.hourlyRate), baseSalary: Number(f.baseSalary) }); setF(empty); reload() } catch (e: any) { setErr(e.message) }
-  }
-  const code = async (id: number) => { const r = await post(`/api/hr/employees/${id}/app-code`); setInfo(`App pairing code (24 h, single use): ${r.code}`) }
-  const revoke = async (id: number) => { await post(`/api/hr/employees/${id}/app-revoke`); setInfo('App access revoked') }
-  const toggle = async (e: any) => { await put(`/api/hr/employees/${e.id}`, { active: !e.active }); reload() }
-  const set = (k: string) => (ev: any) => setF({ ...f, [k]: ev.target.value })
-  return (<>
-    <div className="card"><h2>Add employee</h2>
-      <form onSubmit={add}><div className="grid">
-        <div><label>Employee ID (used to sign in)</label><input value={f.employeeCode} onChange={set('employeeCode')} required /></div>
-        <div><label>Name</label><input value={f.name} onChange={set('name')} required /></div>
-        <div><label>Email</label><input type="email" value={f.email} onChange={set('email')} required /></div>
-        <div><label>Phone (used to sign in)</label><input type="tel" value={f.phone} onChange={set('phone')} required /></div>
-        <div><label>Password (8+)</label><input type="password" value={f.password} onChange={set('password')} required minLength={8} /></div>
-        <div><label>Role</label><select value={f.role} onChange={set('role')}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
-        <div><label>Hourly rate</label><input type="number" min="0" value={f.hourlyRate} onChange={set('hourlyRate')} /></div>
-        <div><label>Monthly base salary</label><input type="number" min="0" value={f.baseSalary} onChange={set('baseSalary')} /></div>
-        <div><label>Punch method</label><select value={f.attendanceMethod} onChange={set('attendanceMethod')}><option value="GEO">Phone + location</option><option value="OFFICE_DEVICE">Office kiosk</option><option value="ANY">Either</option></select></div>
-      </div>{err && <div className="err">{err}</div>}<p><button className="btn">Add</button></p></form>
-    </div>
-    {enrol && <FaceEnrol employee={enrol} onClose={() => setEnrol(null)} />}
-    <div className="card"><h2>Employees</h2>{info && <div className="msg"><span className="code">{info}</span></div>}
-      <div className="scroll"><table><thead><tr><th>Name</th><th>Code</th><th>Role</th><th>Method</th><th></th></tr></thead>
-        <tbody>{data?.map(e => <tr key={e.id}><td>{e.name}{!e.active && <span className="pill warn">inactive</span>}<div className="muted">{e.email}</div></td><td>{e.employeeCode}</td><td>{e.role}</td><td>{e.attendanceMethod}</td>
-          <td className="row"><button className="btn ghost" onClick={() => setEnrol({ id: e.id, name: e.name })}>Enrol face</button><button className="btn ghost" onClick={() => code(e.id)}>App code</button><button className="btn ghost" onClick={() => revoke(e.id)}>Revoke app</button><button className="btn ghost" onClick={() => toggle(e)}>{e.active ? 'Deactivate' : 'Activate'}</button></td></tr>)}</tbody></table></div>
-    </div></>)
-}
 
 function Locations() {
   const { data, reload } = useLoad<any[]>('/api/hr/attendance/locations')
@@ -400,7 +364,7 @@ function Payroll() {
 }
 
 const TABS: [string, string, () => JSX.Element][] = [
-  ['approve', 'To approve', Approvals], ['photo', 'Photo requests', PhotoRequests], ['register', 'Register', Register], ['emps', 'Employees', Employees],
+  ['approve', 'To approve', Approvals], ['photo', 'Photo requests', PhotoRequests], ['register', 'Register', Register], ['emps', 'Employees', () => <></>],
   ['loc', 'Locations', Locations], ['net', 'WiFi', Networks], ['fix', 'Corrections', Corrections], ['phones', 'Phones', Phones],
   ['kiosks', 'Kiosks', Kiosks], ['leave', 'Leave', LeaveAdmin], ['holidays', 'Holidays', Holidays], ['pay', 'Payroll', Payroll], ['paycfg', 'Pay settings', PaySettings],
 ]
@@ -412,6 +376,6 @@ export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
     <header className="top"><b>HR · {me.name}</b><button className="btn ghost" onClick={onLogout}>Sign out</button></header>
     <div className="wrap">
       <div className="tabs">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-      <Cur />
+      {tab === 'emps' ? <EmployeesTab meId={me.id} /> : <Cur />}
     </div></>)
 }

@@ -36,6 +36,17 @@ public class EmployeeService {
         return db.sql(VIEW + " ORDER BY name").query(M.EmpView.class).list();
     }
 
+    /** The HR list: every employee with face / app / phone status flags. */
+    public List<M.EmpRow> listRows() {
+        return db.sql("""
+                SELECT e.id, e.employee_code, e.name, e.email, e.phone, e.role, e.active, e.hourly_rate, e.base_salary,
+                       e.attendance_method, e.device_binding_mode,
+                       EXISTS (SELECT 1 FROM employee_face_templates f WHERE f.employee_id = e.id) AS face_enrolled,
+                       EXISTS (SELECT 1 FROM app_tokens t WHERE t.employee_id = e.id AND t.revoked_at IS NULL) AS app_paired,
+                       EXISTS (SELECT 1 FROM user_devices d WHERE d.employee_id = e.id AND d.status = 'APPROVED') AS phone_approved
+                FROM employees e ORDER BY e.name""").query(M.EmpRow.class).list();
+    }
+
     public M.EmpView get(long id) {
         return db.sql(VIEW + " WHERE id = ?").param(id).query(M.EmpView.class).optional().orElseThrow(() -> ApiException.notFound("Employee"));
     }
@@ -117,12 +128,27 @@ public class EmployeeService {
             assertPhoneFree(in.phone(), id);
             phone = digits(in.phone());
         }
-        db.sql("UPDATE employees SET name = ?, phone = ?, role = ?, hourly_rate = ?, base_salary = ?, attendance_method = ?, device_binding_mode = ?, active = ? WHERE id = ?")
-                .param(in.name() == null ? cur.name() : in.name().trim()).param(phone)
-                .param(role).param(in.hourlyRate() == null ? cur.hourlyRate() : in.hourlyRate())
-                .param(in.baseSalary() == null ? cur.baseSalary() : in.baseSalary()).param(method)
-                .param(in.deviceBindingMode() == null ? cur.deviceBindingMode() : in.deviceBindingMode())
-                .param(in.active() == null ? cur.active() : in.active()).param(id).update();
+        String code = cur.employeeCode();
+        if (in.employeeCode() != null) {
+            require(in.employeeCode(), "Employee code");
+            code = in.employeeCode().trim();
+        }
+        String email = cur.email();
+        if (in.email() != null) {
+            require(in.email(), "Email");
+            email = in.email().trim().toLowerCase();
+        }
+        try {
+            db.sql("UPDATE employees SET employee_code = ?, email = ?, name = ?, phone = ?, role = ?, hourly_rate = ?, base_salary = ?, attendance_method = ?, device_binding_mode = ?, active = ? WHERE id = ?")
+                    .param(code).param(email)
+                    .param(in.name() == null ? cur.name() : in.name().trim()).param(phone)
+                    .param(role).param(in.hourlyRate() == null ? cur.hourlyRate() : in.hourlyRate())
+                    .param(in.baseSalary() == null ? cur.baseSalary() : in.baseSalary()).param(method)
+                    .param(in.deviceBindingMode() == null ? cur.deviceBindingMode() : in.deviceBindingMode())
+                    .param(in.active() == null ? cur.active() : in.active()).param(id).update();
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            throw ApiException.conflict("Employee code or email already exists");
+        }
         if (in.password() != null && !in.password().isBlank()) {
             if (in.password().length() < 8) throw ApiException.bad("Password must be at least 8 characters");
             db.sql("UPDATE employees SET password_hash = ? WHERE id = ?").param(encoder.encode(in.password())).param(id).update();

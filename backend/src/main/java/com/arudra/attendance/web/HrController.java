@@ -55,7 +55,7 @@ public class HrController {
     }
 
     // employees
-    @GetMapping("/employees") public List<M.EmpView> employees() { return employees.list(); }
+    @GetMapping("/employees") public List<M.EmpRow> employees() { return employees.listRows(); }
     @PostMapping("/employees") public M.EmpView createEmployee(@RequestBody EmployeeService.Input in) { return employees.create(in); }
     @PutMapping("/employees/{id}") public M.EmpView updateEmployee(@AuthenticationPrincipal Actor a, @PathVariable long id, @RequestBody EmployeeService.Input in) { return employees.update(id, in, a.employeeId()); }
 
