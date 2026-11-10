@@ -116,8 +116,6 @@ public class PayrollService {
         LocalDate from = ym.atDay(1), to = ym.atEndOfMonth();
         SettingsService.Settings st = settings.get();
         PolicyService.Policy pol = policies.get();
-        int wd = workingDays(pol.workingDaysBasis(), ym, CalendarService.scheduledDaysIn(ym, st.offDays()));
-        int holidayDays = calendar.paidHolidayWorkdays(from, to);
         List<M.DeductionRule> rules = deductions.rules();
         List<Line> out = new ArrayList<>();
 
@@ -126,6 +124,9 @@ public class PayrollService {
         record Att(int workedMinutes, int overtimeMinutes) {}
         for (M.Emp e : emps) {
             PolicyService.EmpPay ep = policies.empPay(e.id());
+            // each employee's own weekly off decides their working days and which holidays fall on a working day
+            int wd = workingDays(pol.workingDaysBasis(), ym, calendar.scheduledDaysIn(e.id(), ym));
+            int holidayDays = calendar.paidHolidayWorkdays(e.id(), from, to);
             String empMode = ep.payMode() != null ? ep.payMode() : mode;
             int worked = 0, ot = 0;
             for (Att a : db.sql("SELECT worked_minutes, overtime_minutes FROM attendance WHERE employee_id = ? AND work_date BETWEEN ? AND ?")

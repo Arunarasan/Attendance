@@ -52,6 +52,7 @@ export function PaySettings() {
   const [st, setSt] = useState<any>(null)
   const [pol, setPol] = useState<Pol | null>(null)
   const [saved, setSaved] = useState('')
+  const [sec, setSec] = useState<'pay' | 'time' | 'lop' | 'score' | 'ded'>('pay')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   useEffect(() => { if (stL.data) setSt({ ...stL.data, overtimeMultiplier: Number(stL.data.overtimeMultiplier) }); setSaved('') }, [stL.data])
@@ -77,70 +78,102 @@ export function PaySettings() {
   const wsum = pol.wAttendance + pol.wPunctuality + pol.wHours + pol.wDiscipline
   const off: string[] = st.weeklyOffDays
 
+  const st0: any = stL.data ? { ...stL.data, overtimeMultiplier: Number(stL.data.overtimeMultiplier) } : {}
+  const pol0: any = polL.data ?? {}
+  const diff = (sk: string[], pk: string[]) => sk.some(k => JSON.stringify(st[k]) !== JSON.stringify(st0[k])) || pk.some(k => JSON.stringify((pol as any)[k]) !== JSON.stringify(k === 'shiftStart' ? String(pol0[k]).slice(0, 5) : k === 'bonusAmount' ? Number(pol0[k]) : pol0[k]))
+  const SECTIONS: { key: typeof sec; label: string; hint: string; icon: React.ReactNode; dirty: boolean }[] = [
+    { key: 'pay', label: 'Pay & overtime', hint: 'Mode, divisor, overtime', icon: <IWallet size={20} />, dirty: diff(['defaultMode', 'overtimeMultiplier'], ['workingDaysBasis', 'otAfterMinutes', 'otDailyCapMinutes']) },
+    { key: 'time', label: 'Work time', hint: 'Hours and weekly off', icon: <IClock size={20} />, dirty: diff(['standardDailyHours', 'weeklyOffDays'], []) },
+    { key: 'lop', label: 'Loss of pay', hint: pol.lopEnabled ? 'Rules on' : 'Rules off', icon: <IAlert size={20} />, dirty: diff([], ['lopEnabled', 'graceMinutes', 'halfDayMinMinutes', 'shiftStart', 'lateGraceMinutes', 'lateCountForHalfDay']) },
+    { key: 'score', label: 'Honour score', hint: 'Weights and bonus', icon: <ICheckCircle size={20} />, dirty: diff([], ['wAttendance', 'wPunctuality', 'wHours', 'wDiscipline', 'bonusMinScore', 'bonusAmount']) },
+    { key: 'ded', label: 'Deductions', hint: 'Taken from gross pay', icon: <IUsers size={20} />, dirty: false },
+  ]
+  const offNames = off.length ? DAYS.filter(([k]) => off.includes(k)).map(([, l]) => l).join(', ') : 'none'
   return (<>
-    <Card title="Pay mode" hint="How people are paid by default. You can choose a different mode for one employee in their Pay tab.">
-      <div className="pa-modes">
-        {([['HOURLY', 'Hourly', 'Paid for the hours worked: hours × hourly rate.'], ['MONTHLY', 'Monthly', 'A fixed monthly salary; missing days reduce it by loss of pay.']] as const).map(([k, t, d]) => (
-          <button key={k} type="button" className={st.defaultMode === k ? 'on' : ''} onClick={() => setSt({ ...st, defaultMode: k })}><IWallet size={26} /><b>{t}</b><small>{d}</small></button>))}
-      </div>
-    </Card>
+    <div className="ps-summary">
+      <span><IWallet size={16} />{st.defaultMode === 'MONTHLY' ? 'Monthly' : 'Hourly'} by default</span>
+      <span><IClock size={16} />{st.standardDailyHours} h day</span>
+      <span>Overtime ×{Number(st.overtimeMultiplier)}</span>
+      <span><ICal size={16} />Off: {offNames}</span>
+      <span className={pol.lopEnabled ? 'on' : ''}>Loss of pay {pol.lopEnabled ? 'on' : 'off'}</span>
+      {pol.bonusMinScore > 0 && <span className="on">Bonus {money(pol.bonusAmount)} at score {pol.bonusMinScore}+</span>}
+    </div>
 
-    <Card title="Work time" hint="The standard working day, and which days of the week are off.">
-      <div className="pa-grid">
-        <Num label="Standard hours per day" value={st.standardDailyHours} min={1} max={24} onChange={v => setSt({ ...st, standardDailyHours: v })} unit="hours" />
-        <Num label="Overtime pays" value={st.overtimeMultiplier} min={1} max={5} step={0.05} onChange={v => setSt({ ...st, overtimeMultiplier: v })} unit="× normal rate" />
-      </div>
-      <label className="pa-lbl">Weekly off days</label>
-      <div className="lc-quick pa-days">{DAYS.map(([k, l]) => <button key={k} type="button" className={off.includes(k) ? 'on' : ''} onClick={() => setSt({ ...st, weeklyOffDays: off.includes(k) ? off.filter(x => x !== k) : [...off, k] })}>{l}</button>)}</div>
-    </Card>
+    <div className="ps-layout">
+      <nav className="ps-nav" aria-label="Pay settings sections">
+        {SECTIONS.map(x => (
+          <button key={x.key} type="button" className={sec === x.key ? 'on' : ''} onClick={e => { setSec(x.key); e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }}>
+            <span className="ps-nav-ic">{x.icon}</span><span className="ps-nav-t"><b>{x.label}</b><small>{x.hint}</small></span>{x.dirty && <i className="ps-dot" title="Unsaved changes" />}
+          </button>))}
+      </nav>
 
-    <Card title="Wages & overtime" hint="How a month is divided into days, and when overtime starts to count.">
-      <div className="pa-grid">
-        <div className="pa-num"><label>Monthly pay is divided by</label>
-          <select value={pol.workingDaysBasis} onChange={e => P({ workingDaysBasis: e.target.value })}>
-            <option value="SCHEDULED">Working days (month minus weekly offs)</option><option value="CALENDAR">Calendar days in the month</option>
-            <option value="FIXED_26">Fixed 26 days</option><option value="FIXED_30">Fixed 30 days</option></select></div>
-        <Num label="Overtime starts after" value={pol.otAfterMinutes} max={600} onChange={v => P({ otAfterMinutes: v })} unit="min beyond the standard day" hint="0 = overtime counts from the first extra minute." />
-        <Num label="Daily overtime cap" value={pol.otDailyCapMinutes} max={1440} onChange={v => P({ otDailyCapMinutes: v })} unit="min" hint="0 = no cap." />
-      </div>
-    </Card>
+      <div className="ps-body">
+        {sec === 'pay' && <>
+          <Card title="Pay mode" hint="How people are paid by default. You can choose a different mode for one employee in their Pay tab.">
+            <div className="pa-modes">
+              {([['HOURLY', 'Hourly', 'Paid for the hours worked: hours × hourly rate.'], ['MONTHLY', 'Monthly', 'A fixed monthly salary; missing days reduce it by loss of pay.']] as const).map(([k, t, d]) => (
+                <button key={k} type="button" className={st.defaultMode === k ? 'on' : ''} onClick={() => setSt({ ...st, defaultMode: k })}><IWallet size={26} /><b>{t}</b><small>{d}</small></button>))}
+            </div>
+          </Card>
+          <Card title="Wages & overtime" hint="How a month is divided into days, and how overtime is paid.">
+            <div className="pa-grid">
+              <div className="pa-num"><label>Monthly pay is divided by</label>
+                <select value={pol.workingDaysBasis} onChange={e => P({ workingDaysBasis: e.target.value })}>
+                  <option value="SCHEDULED">Working days (month minus weekly offs)</option><option value="CALENDAR">Calendar days in the month</option>
+                  <option value="FIXED_26">Fixed 26 days</option><option value="FIXED_30">Fixed 30 days</option></select></div>
+              <Num label="Overtime pays" value={st.overtimeMultiplier} min={1} max={5} step={0.05} onChange={v => setSt({ ...st, overtimeMultiplier: v })} unit="× normal rate" />
+              <Num label="Overtime starts after" value={pol.otAfterMinutes} max={600} onChange={v => P({ otAfterMinutes: v })} unit="min beyond the day" hint="0 = counts from the first extra minute." />
+              <Num label="Daily overtime cap" value={pol.otDailyCapMinutes} max={1440} onChange={v => P({ otDailyCapMinutes: v })} unit="min" hint="0 = no cap." />
+            </div>
+          </Card>
+        </>}
 
-    <Card title="Loss of pay" hint="What happens when the daily work time is not achieved. Applies to monthly-salary employees."
-      right={<Switch on={pol.lopEnabled} onClick={() => P({ lopEnabled: !pol.lopEnabled })} label={pol.lopEnabled ? 'Rules on' : 'Rules off'} />}>
-      <div className={pol.lopEnabled ? '' : 'pa-dim'}>
-        <div className="pa-grid">
-          <Num label="Grace on the day's hours" value={pol.graceMinutes} max={120} onChange={v => P({ graceMinutes: v })} unit="min" />
-          <Num label="Half day needs at least" value={pol.halfDayMinMinutes} min={30} max={720} onChange={v => P({ halfDayMinMinutes: v })} unit="min" />
-          <div className="pa-num"><label>Shift starts at</label><div><input type="time" value={pol.shiftStart} onChange={e => P({ shiftStart: e.target.value })} /></div></div>
-          <Num label="Late grace" value={pol.lateGraceMinutes} max={120} onChange={v => P({ lateGraceMinutes: v })} unit="min" />
-          <Num label="Late arrivals that cost a half day" value={pol.lateCountForHalfDay} max={31} onChange={v => P({ lateCountForHalfDay: v })} unit="lates" hint="0 = lateness never costs pay." />
-        </div>
-        <ul className="pa-example">
-          <li><b>Full day</b>: {hm(Math.max(1, std - pol.graceMinutes))} or more worked. No loss of pay.</li>
-          <li><b>Half day</b>: {hm(pol.halfDayMinMinutes)} to just under a full day. Loses 0.5 day of pay.</li>
-          <li><b>Less than that, or no punch</b>: loses 1 day of pay.</li>
-          <li><b>Late</b>: checking in after {lateAfter}.{pol.lateCountForHalfDay > 0 && <> Every {pol.lateCountForHalfDay} late arrivals in a month loses 0.5 day.</>}</li>
-          <li>Approved paid leave, holidays and weekly offs never lose pay. HR can change any day in <b>Payroll, Loss of pay review</b>.</li>
-        </ul>
-      </div>
-    </Card>
+        {sec === 'time' && <Card title="Work time" hint="The standard working day and the company weekly off. Individual employees can have their own weekly off in their Pay tab, or by asking HR from the Leave page.">
+          <div className="pa-grid">
+            <Num label="Standard hours per day" value={st.standardDailyHours} min={1} max={24} onChange={v => setSt({ ...st, standardDailyHours: v })} unit="hours" />
+          </div>
+          <label className="pa-lbl">Company weekly off (the default for everyone)</label>
+          <div className="lc-quick pa-days">{DAYS.map(([k, l]) => <button key={k} type="button" className={off.includes(k) ? 'on' : ''} onClick={() => setSt({ ...st, weeklyOffDays: off.includes(k) ? off.filter(x => x !== k) : [...off, k] })}>{l}</button>)}</div>
+        </Card>}
 
-    <Card title="Honour score" hint="Each employee gets a monthly score from 0 to 100. Choose how much each part counts.">
-      <div className="pa-weights">
-        {([['wAttendance', 'Attendance', 'Days present out of days required'], ['wPunctuality', 'On time', 'Check-ins before the late limit'], ['wHours', 'Full hours', 'Days with the full day worked'], ['wDiscipline', 'Discipline', 'Fewer flagged punches and corrections']] as const).map(([k, l, d]) => (
-          <div key={k} className="pa-w"><div><b>{l}</b><small>{d}</small></div>
-            <input type="number" min="0" max="100" value={pol[k]} onChange={e => P({ [k]: Number(e.target.value) } as any)} />
-            <span>{wsum ? Math.round((pol[k] / wsum) * 100) : 0}%</span></div>))}
-      </div>
-      <div className="pa-bar">{[['wAttendance', '#3f9a1b'], ['wPunctuality', '#8ad04e'], ['wHours', '#f5c542'], ['wDiscipline', '#f97316']].map(([k, c]) => <i key={k} style={{ width: `${wsum ? ((pol as any)[k] / wsum) * 100 : 0}%`, background: c }} />)}</div>
-      <div className="pa-levels"><span className="lv gold">Gold 90+</span><span className="lv silver">Silver 75+</span><span className="lv bronze">Bronze 60+</span><span className="lv imp">Needs improvement</span></div>
-      <div className="pa-grid" style={{ marginTop: 14 }}>
-        <Num label="Attendance bonus for a score of" value={pol.bonusMinScore} max={100} onChange={v => P({ bonusMinScore: v })} unit="or more" hint="0 = no bonus." />
-        <Num label="Bonus amount" value={pol.bonusAmount} step={50} onChange={v => P({ bonusAmount: v })} unit="per month" />
-      </div>
-    </Card>
+        {sec === 'lop' && <Card title="Loss of pay" hint="What happens when the daily work time is not achieved. Applies to monthly-salary employees."
+          right={<Switch on={pol.lopEnabled} onClick={() => P({ lopEnabled: !pol.lopEnabled })} label={pol.lopEnabled ? 'Rules on' : 'Rules off'} />}>
+          <div className={pol.lopEnabled ? '' : 'pa-dim'}>
+            <div className="pa-grid">
+              <Num label="Grace on the day's hours" value={pol.graceMinutes} max={120} onChange={v => P({ graceMinutes: v })} unit="min" />
+              <Num label="Half day needs at least" value={pol.halfDayMinMinutes} min={30} max={720} onChange={v => P({ halfDayMinMinutes: v })} unit="min" />
+              <div className="pa-num"><label>Shift starts at</label><div><input type="time" value={pol.shiftStart} onChange={e => P({ shiftStart: e.target.value })} /></div></div>
+              <Num label="Late grace" value={pol.lateGraceMinutes} max={120} onChange={v => P({ lateGraceMinutes: v })} unit="min" />
+              <Num label="Late arrivals that cost a half day" value={pol.lateCountForHalfDay} max={31} onChange={v => P({ lateCountForHalfDay: v })} unit="lates" hint="0 = lateness never costs pay." />
+            </div>
+            <ul className="pa-example">
+              <li><b>Full day</b>: {hm(Math.max(1, std - pol.graceMinutes))} or more worked. No loss of pay.</li>
+              <li><b>Half day</b>: {hm(pol.halfDayMinMinutes)} to just under a full day. Loses 0.5 day of pay.</li>
+              <li><b>Less than that, or no punch</b>: loses 1 day of pay.</li>
+              <li><b>Late</b>: checking in after {lateAfter}.{pol.lateCountForHalfDay > 0 && <> Every {pol.lateCountForHalfDay} late arrivals in a month loses 0.5 day.</>}</li>
+              <li>Approved paid leave, holidays and weekly offs never lose pay. HR can change any day in <b>Payroll, Loss of pay review</b>.</li>
+            </ul>
+          </div>
+        </Card>}
 
-    <Deductions />
+        {sec === 'score' && <Card title="Honour score" hint="Each employee gets a monthly score from 0 to 100. Choose how much each part counts.">
+          <div className="pa-weights">
+            {([['wAttendance', 'Attendance', 'Days present out of days required'], ['wPunctuality', 'On time', 'Check-ins before the late limit'], ['wHours', 'Full hours', 'Days with the full day worked'], ['wDiscipline', 'Discipline', 'Fewer flagged punches and corrections']] as const).map(([k, l, d]) => (
+              <div key={k} className="pa-w"><div><b>{l}</b><small>{d}</small></div>
+                <input type="number" min="0" max="100" value={pol[k]} onChange={e => P({ [k]: Number(e.target.value) } as any)} />
+                <span>{wsum ? Math.round((pol[k] / wsum) * 100) : 0}%</span></div>))}
+          </div>
+          <div className="pa-bar">{[['wAttendance', '#3f9a1b'], ['wPunctuality', '#8ad04e'], ['wHours', '#f5c542'], ['wDiscipline', '#f97316']].map(([k, c]) => <i key={k} style={{ width: `${wsum ? ((pol as any)[k] / wsum) * 100 : 0}%`, background: c }} />)}</div>
+          <div className="pa-levels"><span className="lv gold">Gold 90+</span><span className="lv silver">Silver 75+</span><span className="lv bronze">Bronze 60+</span><span className="lv imp">Needs improvement</span></div>
+          <div className="pa-grid" style={{ marginTop: 14 }}>
+            <Num label="Attendance bonus for a score of" value={pol.bonusMinScore} max={100} onChange={v => P({ bonusMinScore: v })} unit="or more" hint="0 = no bonus." />
+            <Num label="Bonus amount" value={pol.bonusAmount} step={50} onChange={v => P({ bonusAmount: v })} unit="per month" />
+          </div>
+        </Card>}
+
+        {sec === 'ded' && <Deductions />}
+      </div>
+    </div>
 
     {(dirty || msg || err) && <div className="ap-bar pa-save">
       {err ? <span style={{ color: '#fca5a5' }}>{err}</span> : msg && !dirty ? <span>{msg}</span> : <span><b>Unsaved changes</b></span>}

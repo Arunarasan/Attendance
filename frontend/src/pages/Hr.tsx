@@ -5,7 +5,7 @@ import EmployeesTab from './employees/EmployeesTab'
 import Dashboard from './Dashboard'
 import { Holidays, LeaveAdmin } from './LeaveHolidays'
 import { Corrections, Register } from './AttendanceAdmin'
-import { Approvals, PhotoRequests } from './ApprovalsAdmin'
+import { Approvals, PhotoRequests, WeekOffRequests } from './ApprovalsAdmin'
 import { Locations, Networks } from './LocationsAdmin'
 import { LopReview, PaySettings, Payroll, Scores } from './PayAdmin'
 import { ICal, ICalCheck, ICheckSq, IBell, IDevice, IGear, IHome, IMenu, IPin, IUsers, IWallet, Leaves } from '../components/icons'
@@ -47,7 +47,7 @@ function Kiosks() {
 }
 
 const TABS: Record<string, () => JSX.Element> = {
-  approve: Approvals, photo: PhotoRequests, register: Register, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
+  approve: Approvals, photo: PhotoRequests, weekoff: WeekOffRequests, register: Register, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
   kiosks: Kiosks, leave: LeaveAdmin, holidays: Holidays, pay: Payroll, lop: LopReview, score: Scores, paycfg: PaySettings,
 }
 
@@ -57,7 +57,7 @@ const GROUPS: Group[] = [
   { key: 'emps', label: 'Employees', icon: <IUsers />, tabs: [] },
   { key: 'att', label: 'Attendance', icon: <ICalCheck />, tabs: [['register', 'Register'], ['fix', 'Corrections']] },
   { key: 'leave', label: 'Leave & Holidays', icon: <ICal />, tabs: [['leave', 'Leave'], ['holidays', 'Holidays']] },
-  { key: 'appr', label: 'Approvals', icon: <ICheckSq />, tabs: [['approve', 'To approve'], ['photo', 'Photo requests']] },
+  { key: 'appr', label: 'Approvals', icon: <ICheckSq />, tabs: [['approve', 'To approve'], ['photo', 'Photo requests'], ['weekoff', 'Weekly off']] },
   { key: 'loc', label: 'Locations', icon: <IPin />, tabs: [['loc', 'Locations'], ['net', 'WiFi']] },
   { key: 'dev', label: 'Devices / Kiosks', icon: <IDevice />, tabs: [['phones', 'Phones'], ['kiosks', 'Kiosks']] },
   { key: 'pay', label: 'Payroll', icon: <IWallet />, tabs: [['pay', 'Payroll'], ['lop', 'Loss of pay review'], ['score', 'Honour scores']] },

@@ -19,10 +19,12 @@ import java.util.Set;
 public class CalendarService {
     private final JdbcClient db;
     private final SettingsService settings;
+    private final OffDayService offDays;
 
-    public CalendarService(JdbcClient db, SettingsService settings) {
+    public CalendarService(JdbcClient db, SettingsService settings, OffDayService offDays) {
         this.db = db;
         this.settings = settings;
+        this.offDays = offDays;
     }
 
     // ---------- holidays ----------
@@ -76,6 +78,36 @@ public class CalendarService {
         int n = 0;
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) if (isWorkday(d, hol)) n++;
         return halfDay ? n * 0.5 : n;
+    }
+
+    // ---- the same questions for one employee, whose weekly off may differ from the company's ----
+
+    public boolean isWorkday(long employeeId, LocalDate d, Map<LocalDate, M.Holiday> holidays) {
+        return !offDays.isOff(employeeId, d) && !holidays.containsKey(d);
+    }
+
+    public double workdaysBetween(long employeeId, LocalDate from, LocalDate to, boolean halfDay) {
+        Map<LocalDate, M.Holiday> hol = holidaysBetween(from, to);
+        var off = offDays.resolver(employeeId);
+        int n = 0;
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) if (!off.apply(d).contains(d.getDayOfWeek()) && !hol.containsKey(d)) n++;
+        return halfDay ? n * 0.5 : n;
+    }
+
+    /** The employee's working days in a month before holidays are removed (their weekly offs only): the monthly-pay divisor. */
+    public int scheduledDaysIn(long employeeId, YearMonth ym) {
+        var off = offDays.resolver(employeeId);
+        int days = 0;
+        for (int d = 1; d <= ym.lengthOfMonth(); d++) if (!off.apply(ym.atDay(d)).contains(ym.atDay(d).getDayOfWeek())) days++;
+        return days;
+    }
+
+    /** Paid holidays that fall on one of the employee's normal working days: each is a day of pay. */
+    public int paidHolidayWorkdays(long employeeId, LocalDate from, LocalDate to) {
+        var off = offDays.resolver(employeeId);
+        int n = 0;
+        for (M.Holiday h : holidaysBetween(from, to).values()) if (h.paid() && !off.apply(h.holidayDate()).contains(h.holidayDate().getDayOfWeek())) n++;
+        return n;
     }
 
     /** Scheduled working days in a month before holidays are removed (weekly offs only): the monthly-pay divisor. */

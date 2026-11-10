@@ -97,7 +97,7 @@ public class LeaveService {
         if (halfDay && !start.equals(end)) throw ApiException.bad("A half day must be a single date");
         if (start.isBefore(time.now().toLocalDate().minusDays(60))) throw ApiException.bad("Leave more than 60 days in the past cannot be requested");
         if (java.time.temporal.ChronoUnit.DAYS.between(start, end) > 90) throw ApiException.bad("A single request can cover at most 90 days");
-        double days = calendar.workdaysBetween(start, end, halfDay);
+        double days = calendar.workdaysBetween(employeeId, start, end, halfDay);
         if (days <= 0) throw ApiException.bad("That range has no working days (weekly offs and holidays are not counted)");
         BigDecimal d = BigDecimal.valueOf(days);
 
@@ -172,7 +172,7 @@ public class LeaveService {
             LocalDate a = r.startDate().isBefore(from) ? from : r.startDate();
             LocalDate b = r.endDate().isAfter(to) ? to : r.endDate();
             double n = 0;
-            for (LocalDate d = a; !d.isAfter(b); d = d.plusDays(1)) if (calendar.isWorkday(d, holidays)) n++;
+            for (LocalDate d = a; !d.isAfter(b); d = d.plusDays(1)) if (calendar.isWorkday(employeeId, d, holidays)) n++;
             if (r.halfDay()) n *= 0.5;
             if (r.paid()) paid += n; else unpaid += n;
         }

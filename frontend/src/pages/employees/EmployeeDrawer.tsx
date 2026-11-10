@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { post, put } from '../../lib/api'
 import FaceEnrol from '../FaceEnrol'
 import EmpPayExtras from './EmpPayExtras'
+import EmpOffDays from './EmpOffDays'
 import { BINDING_LABEL, Confirm, copyText, Drawer, Emp, Field, initials, METHOD_LABEL, Modal, randomPassword } from './ui'
 
 type Tab = 'profile' | 'pay' | 'access'
@@ -102,6 +103,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
         <Field label="Monthly base salary" error={errors.baseSalary}><input type="number" min="0" value={p.baseSalary} onChange={set('baseSalary')} /></Field>
         <div className="hint full">Rate changes apply to payroll runs generated after you save. Existing payslips are not changed.</div>
         <EmpPayExtras empId={emp.id} toast={toast} />
+        <EmpOffDays empId={emp.id} toast={toast} />
       </div>}
 
       {tab === 'access' && <>

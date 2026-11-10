@@ -115,3 +115,54 @@ export function PhotoRequests() {
     </section>
   </>)
 }
+
+const WK: [string, string][] = [['MONDAY', 'Mon'], ['TUESDAY', 'Tue'], ['WEDNESDAY', 'Wed'], ['THURSDAY', 'Thu'], ['FRIDAY', 'Fri'], ['SATURDAY', 'Sat'], ['SUNDAY', 'Sun']]
+const dayName = (x: string) => { const k = WK.find(([n]) => n.startsWith(x.trim().toUpperCase().slice(0, 3))); return k ? k[1] : x }
+const dayList = (csv: string) => csv.split(',').map(dayName)
+
+/** Weekly off requests from employees. Approving gives them the day; rejecting changes nothing. */
+export function WeekOffRequests() {
+  const { data, reload } = useLoad<any[]>('/api/hr/off-day-requests')
+  const [cur, setCur] = useState<Record<number, string[]>>({})
+  const [note, setNote] = useState<Record<number, string>>({})
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    (data ?? []).forEach(r => { if (!cur[r.employeeId]) get(`/api/hr/employees/${r.employeeId}/off-days`).then(x => setCur(c => ({ ...c, [r.employeeId]: x.current.days }))).catch(() => {}) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+  const act = async (id: number, a: 'approve' | 'reject') => {
+    setErr('')
+    try { await post(`/api/hr/off-day-requests/${id}/${a}`, { note: note[id] ?? '' }); reload() } catch (e: any) { setErr(e.message) }
+  }
+  return (<>
+    <div className="lh-stats" style={{ gridTemplateColumns: '1fr' }}>
+      <div className="lh-stat y"><span><ICal size={26} /></span><b>{data?.length ?? 0}</b><small>Weekly off requests waiting</small></div>
+    </div>
+    <section className="lh-sec">
+      <div className="lh-sec-h"><div><h3>Weekly off requests</h3><p>Employees ask for a different weekly off. The new day is given only if you approve.</p></div></div>
+      {err && <div className="err">{err}</div>}
+      {data?.length === 0 && <div className="lh-empty"><ICheckCircle size={34} /><b>All caught up</b><small>No weekly off requests are waiting.</small></div>}
+      <div className="lh-reqs">
+        {data?.map(r => (
+          <div key={r.id} className="lh-req">
+            <span className="lh-av">{initials(r.employeeName)}</span>
+            <div className="lh-req-m">
+              <b>{r.employeeName}</b><small>{r.employeeCode}</small>
+              <div className="wk-cmp">
+                <div><small>Now</small><b>{(cur[r.employeeId] ?? []).map(d => dayName(d)).join(' & ') || '…'}</b></div>
+                <IArrowR size={18} />
+                <div className="new"><small>Asked for</small><b>{dayList(r.offDays).join(' & ')}</b></div>
+              </div>
+              <div className="lh-req-d"><ICal size={16} />From {new Date(r.effectiveFrom + 'T00:00').toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+              {r.reason && <q>{r.reason}</q>}
+              <input className="wk-note" placeholder="Note to the employee (optional)" value={note[r.id] ?? ''} onChange={e => setNote({ ...note, [r.id]: e.target.value })} />
+            </div>
+            <div className="lh-req-a">
+              <button className="lh-ok" onClick={() => act(r.id, 'approve')}><ICheckCircle size={18} />Approve</button>
+              <button className="lh-no" onClick={() => act(r.id, 'reject')}><IX size={18} />Reject</button>
+            </div>
+          </div>))}
+      </div>
+    </section>
+  </>)
+}

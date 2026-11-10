@@ -5,9 +5,10 @@ import { hasLocalKey, publicKeyB64, signNonce, wifiBssid } from '../lib/deviceKe
 import FaceCapture from '../components/FaceCapture'
 import FaceEnrol from './FaceEnrol'
 import type { Me } from '../App'
-import { IArrowR, IBack, IBell, ICal, ICalCheck, ICalPlus, ICheckCircle, IChevR, IClock, IDoc, IFace, IBriefcase, IFinger, IGear, IHeart, IHome, ILock, ISend, ISun, IUmbrella, IX, IPhone, IUser, Leaves } from '../components/icons'
+import { IArrowR, IBack, IBell, ICal, ICalCheck, ICalPlus, ICheckCircle, IChevR, IClock, IDoc, IFace, IAlert, IBriefcase, IFinger, IGear, IHeart, IHome, ILock, ISend, ISun, IUmbrella, IX, IPhone, IUser, Leaves } from '../components/icons'
 import './portal.css'
 import { LANGS, setLang, setTextSize, useT } from '../lib/i18n'
+import WeeklyOffSection from './WeeklyOffPage'
 
 type Session = { id: number; clockIn: string; clockOut: string | null; breakStarted: string | null; breakMinutes: number; approvalStatus: string; flagged: boolean; flagReason: string | null }
 type TodayData = { isOpen: boolean; onBreak: boolean; sessions: Session[]; days: { workedMinutes: number; overtimeMinutes: number }[] }
@@ -179,40 +180,87 @@ function Timesheet({ version }: { version: number }) {
   </>)
 }
 
+const CORR_REASONS = ['Forgot to check out', 'Forgot to check in', 'Phone or network problem', 'Worked outside the office']
+const hhmm = (iso?: string | null) => (iso ? iso.slice(11, 16) : '')
+
+function TimeTile({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [h, m] = value.split(':').map(Number)
+  const shown = `${String(h % 12 === 0 ? 12 : h % 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  return (
+    <label className="tc-time">
+      <span className="tc-time-l"><IClock size={16} />{label}</span>
+      <b>{shown}<em>{h >= 12 ? 'PM' : 'AM'}</em></b>
+      <input type="time" value={value} onChange={e => onChange(e.target.value)} required />
+    </label>
+  )
+}
+
 function Corrections() {
   const [list, setList] = useState<any[]>([])
   const [date, setDate] = useState(today())
   const [inT, setIn] = useState('09:00')
-  const [outT, setOut] = useState('17:00')
+  const [outT, setOut] = useState('18:00')
   const [reason, setReason] = useState('')
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [rec, setRec] = useState<any>(null)
   const load = () => get('/api/me/corrections').then(setList)
   useEffect(() => { load() }, [])
+  // What is already recorded for the chosen day, so the employee can see what is wrong.
+  useEffect(() => {
+    let live = true
+    get(`/api/me/timesheet?month=${date.slice(0, 7)}`).then(r => { if (live) setRec((r.days as any[]).find(d => d.workDate === date) ?? null) }).catch(() => { if (live) setRec(null) })
+    return () => { live = false }
+  }, [date])
+  const bad = outT <= inT
   async function submit(e: FormEvent) {
     e.preventDefault(); setErr(''); setOk('')
+    if (bad) { setErr('Clock out must be after clock in'); return }
+    setBusy(true)
     try {
       await post('/api/me/corrections', { date, requestedIn: `${date}T${inT}:00`, requestedOut: `${date}T${outT}:00`, reason })
-      setOk('Sent to HR'); setReason(''); load()
-    } catch (e: any) { setErr(e.message) }
+      setOk('Request sent to HR'); setReason(''); load()
+    } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
-  return (
-    <div className="card">
-      <h2>Request a time correction</h2>
-      <form onSubmit={submit}>
-        <div className="grid">
-          <div><label>Date</label><input type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} required /></div>
-          <div><label>Clock in</label><input type="time" value={inT} onChange={e => setIn(e.target.value)} required /></div>
-          <div><label>Clock out</label><input type="time" value={outT} onChange={e => setOut(e.target.value)} required /></div>
-        </div>
-        <label>Reason</label><input value={reason} onChange={e => setReason(e.target.value)} required />
-        {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
-        <p><button className="btn">Send</button></p>
-      </form>
-      <table><thead><tr><th>Date</th><th>Requested</th><th>Status</th></tr></thead>
-        <tbody>{list.map(c => <tr key={c.id}><td>{c.workDate}</td><td>{fmtTime(c.requestedIn)} – {fmtTime(c.requestedOut)}</td><td><span className="pill">{c.status.toLowerCase()}</span></td></tr>)}</tbody></table>
+  const mins = (a: string, b: string) => Math.max(0, (Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5))) - (Number(a.slice(0, 2)) * 60 + Number(a.slice(3, 5))))
+  const total = mins(inT, outT)
+  return (<>
+    <div className="pm-h"><h3>Which day?</h3></div>
+    <DateTile label="Date" value={date} max={today()} onChange={setDate} />
+    <div className={`tc-rec${rec ? '' : ' none'}`}>
+      <span className="tc-rec-ic">{rec ? <ICheckCircle size={20} /> : <IAlert size={20} />}</span>
+      <div>{rec ? <><b>Recorded now</b><small>{fmtTime(rec.checkIn)} – {rec.checkOut ? fmtTime(rec.checkOut) : 'no check-out'}</small></> : <><b>Nothing recorded</b><small>No punches on this day.</small></>}</div>
+      {rec && <button type="button" className="tc-use" onClick={() => { if (rec.checkIn) setIn(hhmm(rec.checkIn)); if (rec.checkOut) setOut(hhmm(rec.checkOut)) }}>Start from this</button>}
     </div>
-  )
+
+    <form onSubmit={submit}>
+      <div className="pm-h"><h3>Correct times</h3></div>
+      <div className="tc-times"><TimeTile label="Clock in" value={inT} onChange={setIn} /><span className="lv-arrow"><IArrowR size={20} /></span><TimeTile label="Clock out" value={outT} onChange={setOut} /></div>
+      <div className="lv-sum"><span className={`lv-days${bad ? ' bad' : ''}`}><b>{bad ? '—' : `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`}</b> worked</span></div>
+
+      <div className="pm-h"><h3>Reason</h3></div>
+      <div className="lv-chips">{CORR_REASONS.map(r => <button key={r} type="button" className={reason === r ? 'on' : ''} onClick={() => setReason(r)}>{r}</button>)}</div>
+      <textarea className="lv-reason" rows={3} placeholder="Tell HR what happened" value={reason} onChange={e => setReason(e.target.value)} required />
+      {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
+      <button className="lv-submit" disabled={busy || bad || !reason.trim()}><ISend size={20} />{busy ? 'Sending…' : 'Send to HR'}</button>
+    </form>
+
+    <div className="pm-h"><h3>My requests</h3></div>
+    {list.length === 0 && <section className="pm-card"><p className="pm-muted" style={{ margin: 0 }}>No correction requests yet.</p></section>}
+    {list.map(c => {
+      const st = c.status === 'APPROVED' ? 'ok' : c.status === 'PENDING' ? 'wait' : 'no'
+      return (
+        <section key={c.id} className="pm-card lv-req">
+          <span className={`lv-st ${st}`}>{st === 'ok' ? <ICheckCircle size={22} /> : st === 'wait' ? <IClock size={22} /> : <IX size={22} />}</span>
+          <div className="lv-req-m">
+            <b>{nice(c.workDate)}</b>
+            <small>{c.originalIn ? `${fmtTime(c.originalIn)} – ${c.originalOut ? fmtTime(c.originalOut) : '—'}` : 'No record'} <IArrowR size={11} /> <b style={{ color: 'var(--ok)' }}>{fmtTime(c.requestedIn)} – {fmtTime(c.requestedOut)}</b></small>
+            <small>{c.status.toLowerCase()}{c.reason && ` · ${c.reason}`}</small>
+          </div>
+        </section>)
+    })}
+  </>)
 }
 
 const typeIcon = (name: string, size = 24) => {
@@ -226,13 +274,13 @@ const dateOf = (d: string) => new Date(d + 'T00:00')
 const nice = (d: string) => dateOf(d).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })
 const dow = (d: string) => dateOf(d).toLocaleDateString([], { weekday: 'long' })
 
-function DateTile({ label, value, min, onChange }: { label: string; value: string; min?: string; onChange: (v: string) => void }) {
+function DateTile({ label, value, min, max, onChange }: { label: string; value: string; min?: string; max?: string; onChange: (v: string) => void }) {
   return (
     <label className="lv-date">
       <span className="lv-date-ic"><ICal size={22} /></span>
       <span className="lv-date-l">{label}</span>
       <b>{nice(value)}</b><small>{dow(value)}</small>
-      <input type="date" value={value} min={min} onChange={e => onChange(e.target.value)} required />
+      <input type="date" value={value} min={min} max={max} onChange={e => onChange(e.target.value)} required />
     </label>
   )
 }
@@ -265,6 +313,7 @@ function Leave() {
   const days = same && f.halfDay ? 0.5 : span
   const upcoming = holidays.filter(h => h.holidayDate >= today()).slice(0, 4)
   return (<>
+    <WeeklyOffSection />
     <div className="pm-h"><h3>Leave type</h3></div>
     <div className="lv-types">
       {bal.map(b => {
@@ -328,31 +377,75 @@ function Leave() {
   </>)
 }
 
+function PayslipCard({ p, open, onToggle }: { p: any; open: boolean; onToggle: () => void }) {
+  const { t } = useT()
+  const m = (v: any) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const n = (v: any) => Number(v ?? 0)
+  const earn = n(p.gross)
+  const cut = n(p.deductions) + n(p.lopAmount)
+  const month = new Date(p.period + '-01T00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })
+  const lines: [string, string, boolean][] = [
+    [`Hours worked`, `${p.regularHours} h`, false],
+    ...(n(p.overtimeHours) > 0 ? [[`Overtime`, `${p.overtimeHours} h`, false] as [string, string, boolean]] : []),
+    ...(n(p.paidLeaveDays) + n(p.holidayDays) > 0 ? [[`Paid leave + holidays`, `${n(p.paidLeaveDays) + n(p.holidayDays)} days`, false] as [string, string, boolean]] : []),
+    ...(n(p.unpaidLeaveDays) > 0 ? [[`Unpaid leave`, `${n(p.unpaidLeaveDays)} days`, true] as [string, string, boolean]] : []),
+  ]
+  return (
+    <section className={`pm-card ps2${open ? ' open' : ''}`}>
+      <button className="ps2-head" onClick={onToggle} aria-expanded={open}>
+        <span className="ps2-ic"><IDoc size={22} /></span>
+        <span className="ps2-m"><b>{month}</b><small>{String(p.payMode ?? '').toLowerCase()}{p.score != null && ` · ${t('honourScore')} ${p.score}`}</small></span>
+        <span className="ps2-net"><b>{m(p.net)}</b><small>{t('netPay')}</small></span>
+        <IChevR size={18} />
+      </button>
+      {open && <div className="ps2-body">
+        <div className="ps2-bar" title="Where the money goes">
+          <i style={{ width: `${earn > 0 ? Math.max(0, (n(p.net) / (earn + n(p.lopAmount))) * 100) : 0}%`, background: '#3f9a1b' }} />
+          <i style={{ width: `${earn > 0 ? (cut / (earn + n(p.lopAmount))) * 100 : 0}%`, background: '#f4a3a3' }} />
+        </div>
+        <div className="ps2-legend"><span><i style={{ background: '#3f9a1b' }} />You receive {m(p.net)}</span>{cut > 0 && <span><i style={{ background: '#f4a3a3' }} />Taken off {m(cut)}</span>}</div>
+
+        <h4>Earnings</h4>
+        <div className="ps-rows">
+          <div><span>Pay for the month</span><b>{m(earn - n(p.allowances) - n(p.bonus))}</b></div>
+          {n(p.allowances) > 0 && <div><span>{t('allowances')}</span><b>+{m(p.allowances)}</b></div>}
+          {n(p.bonus) > 0 && <div><span>{t('bonus')}</span><b>+{m(p.bonus)}</b></div>}
+          <div className="tot"><span>Gross pay</span><b>{m(earn)}</b></div>
+        </div>
+        {(n(p.lopDays) > 0 || n(p.deductions) > 0 || n(p.adjustments) !== 0) && <>
+          <h4>Taken off</h4>
+          <div className="ps-rows">
+            {n(p.lopDays) > 0 && <div className="bad"><span>{t('lossOfPay')} ({n(p.lopDays)} {n(p.lopDays) === 1 ? 'day' : 'days'})</span><b>−{m(p.lopAmount)}</b></div>}
+            {n(p.deductions) > 0 && <div className="bad"><span>Deductions</span><b>−{m(p.deductions)}</b></div>}
+            {n(p.adjustments) !== 0 && <div><span>Adjustments</span><b>{n(p.adjustments) > 0 ? '+' : ''}{m(p.adjustments)}</b></div>}
+          </div>
+          {p.deductionDetail && <small className="pm-muted">{p.deductionDetail}</small>}
+        </>}
+        <h4>Attendance</h4>
+        <div className="ps-rows">{lines.map(([l, v, bad]) => <div key={l} className={bad ? 'bad' : ''}><span>{l}</span><b>{v}</b></div>)}</div>
+      </div>}
+    </section>
+  )
+}
+
 function Payslips() {
   const { t } = useT()
-  const [list, setList] = useState<any[]>([])
-  useEffect(() => { get('/api/me/payslips').then(setList) }, [])
+  const [list, setList] = useState<any[] | null>(null)
+  const [open, setOpen] = useState<number | null>(null)
+  useEffect(() => { get('/api/me/payslips').then((l: any[]) => { setList(l); if (l.length) setOpen(l[0].id) }).catch(() => setList([])) }, [])
   const m = (v: any) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (list === null) return <p className="pm-muted">Loading…</p>
+  if (list.length === 0) return <section className="pm-card ps-empty"><IDoc size={36} /><b>No payslips yet</b><small>Your payslip appears here after HR runs payroll for a month.</small></section>
+  const latest = list[0]
   return (<>
-    {list.length === 0 && <section className="pm-card"><p className="pm-muted" style={{ margin: 0 }}>No payslips yet.</p></section>}
-    {list.map(p => (
-      <section key={p.id} className="pm-card ps-card">
-        <div className="ps-top"><div><small>{new Date(p.period + '-01T00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })}</small><h3>{m(p.net)}</h3><small>{t('netPay')}{p.payMode && ` · ${String(p.payMode).toLowerCase()}`}</small></div>
-          {p.score != null && <span className="sc-pill">{t('honourScore')} {p.score}</span>}</div>
-        <div className="ps-rows">
-          <div><span>Hours</span><b>{p.regularHours} h</b></div>
-          {Number(p.overtimeHours) > 0 && <div><span>Overtime</span><b>{p.overtimeHours} h</b></div>}
-          {Number(p.allowances) > 0 && <div><span>{t('allowances')}</span><b>+{m(p.allowances)}</b></div>}
-          {Number(p.bonus) > 0 && <div><span>{t('bonus')}</span><b>+{m(p.bonus)}</b></div>}
-          <div><span>Gross</span><b>{m(p.gross)}</b></div>
-          {Number(p.lopDays) > 0 && <div className="bad"><span>{t('lossOfPay')} ({Number(p.lopDays)} d)</span><b>−{m(p.lopAmount)}</b></div>}
-          {Number(p.deductions) > 0 && <div className="bad"><span>Deductions</span><b>−{m(p.deductions)}</b></div>}
-          {Number(p.adjustments) !== 0 && <div><span>Adjustments</span><b>{m(p.adjustments)}</b></div>}
-          {(Number(p.paidLeaveDays) + Number(p.holidayDays) > 0) && <div><span>Paid leave + holidays</span><b>{Number(p.paidLeaveDays) + Number(p.holidayDays)} d</b></div>}
-          {Number(p.unpaidLeaveDays) > 0 && <div className="bad"><span>Unpaid leave</span><b>{Number(p.unpaidLeaveDays)} d</b></div>}
-        </div>
-        {p.deductionDetail && <small className="pm-muted">{p.deductionDetail}</small>}
-      </section>))}
+    <section className="ps-hero">
+      <small>{new Date(latest.period + '-01T00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })}</small>
+      <h2>{m(latest.net)}</h2>
+      <span>{t('netPay')}</span>
+      {latest.score != null && <em>{t('honourScore')} {latest.score}</em>}
+    </section>
+    <div className="pm-h"><h3>All payslips</h3><span className="pm-muted">{list.length}</span></div>
+    {list.map(p => <PayslipCard key={p.id} p={p} open={open === p.id} onToggle={() => setOpen(open === p.id ? null : p.id)} />)}
   </>)
 }
 

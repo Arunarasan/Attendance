@@ -41,8 +41,10 @@ public class DayRulesService {
     private final PolicyService policies;
     private final SettingsService settings;
     private final CalendarService calendar;
+    private final OffDayService offDays;
 
-    public DayRulesService(JdbcClient db, PolicyService policies, SettingsService settings, CalendarService calendar) {
+    public DayRulesService(JdbcClient db, PolicyService policies, SettingsService settings, CalendarService calendar, OffDayService offDays) {
+        this.offDays = offDays;
         this.db = db;
         this.policies = policies;
         this.settings = settings;
@@ -53,6 +55,12 @@ public class DayRulesService {
 
     public static Month evaluate(LocalDate from, LocalDate to, int standardMinutes, Policy p, Set<DayOfWeek> off, Map<LocalDate, M.Holiday> holidays,
                                  Map<LocalDate, LeaveDay> leave, Map<LocalDate, AttDay> att, Map<LocalDate, BigDecimal> overrides) {
+        return evaluate(from, to, standardMinutes, p, d -> off, holidays, leave, att, overrides);
+    }
+
+    /** offFor gives the employee's weekly off days on a date, since their off day can change during the month. */
+    public static Month evaluate(LocalDate from, LocalDate to, int standardMinutes, Policy p, java.util.function.Function<LocalDate, Set<DayOfWeek>> offFor,
+                                 Map<LocalDate, M.Holiday> holidays, Map<LocalDate, LeaveDay> leave, Map<LocalDate, AttDay> att, Map<LocalDate, BigDecimal> overrides) {
         List<Day> days = new ArrayList<>();
         double dayLop = 0;
         int lateDays = 0, full = 0, half = 0, shortDays = 0, absent = 0, unpaidLeave = 0, required = 0, punched = 0;
@@ -66,7 +74,7 @@ public class DayRulesService {
             int late = 0, shortMin = 0;
             M.Holiday h = holidays.get(d);
             LeaveDay lv = leave.get(d);
-            if (off.contains(d.getDayOfWeek())) { status = "OFF"; lop = 0; }
+            if (offFor.apply(d).contains(d.getDayOfWeek())) { status = "OFF"; lop = 0; }
             else if (h != null) { status = h.paid() ? "HOLIDAY" : "HOLIDAY_UNPAID"; lop = h.paid() ? 0 : 1; }
             else if (lv != null) {
                 if (lv.paid()) { status = "LEAVE"; lop = 0; }
@@ -131,7 +139,7 @@ public class DayRulesService {
 
         record Req(LocalDate startDate, LocalDate endDate, boolean halfDay, boolean paid) {}
         Map<LocalDate, M.Holiday> holidays = calendar.holidaysBetween(from, to);
-        Set<DayOfWeek> off = settings.get().offDays();
+        var off = offDays.resolver(employeeId);
         Map<LocalDate, LeaveDay> leave = new HashMap<>();
         for (Req r : db.sql("""
                 SELECT r.start_date, r.end_date, r.half_day, t.paid FROM leave_requests r JOIN leave_types t ON t.id = r.leave_type_id
@@ -139,7 +147,7 @@ public class DayRulesService {
                 .param(employeeId).param(to).param(from).query(Req.class).list()) {
             LocalDate a = r.startDate().isBefore(from) ? from : r.startDate();
             LocalDate b = r.endDate().isAfter(to) ? to : r.endDate();
-            for (LocalDate d = a; !d.isAfter(b); d = d.plusDays(1)) if (calendar.isWorkday(d, holidays)) leave.put(d, new LeaveDay(r.paid(), r.halfDay()));
+            for (LocalDate d = a; !d.isAfter(b); d = d.plusDays(1)) if (!off.apply(d).contains(d.getDayOfWeek()) && !holidays.containsKey(d)) leave.put(d, new LeaveDay(r.paid(), r.halfDay()));
         }
 
         record Ov(LocalDate workDate, BigDecimal lopDays) {}

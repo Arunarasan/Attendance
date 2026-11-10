@@ -134,3 +134,54 @@
 .ps-rows { display: grid; gap: 2px; }
 .ps-rows > div { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; } .ps-rows > div:last-child { border-bottom: 0; }
 .ps-rows .bad b { color: var(--bad); }
+
+/* time correction */
+.tc-rec { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 10px 14px; border-radius: 16px; background: var(--ok-bg); color: var(--ok); }
+.tc-rec.none { background: var(--warn-bg); color: var(--warn); }
+.tc-rec > div { flex: 1; display: flex; flex-direction: column; } .tc-rec small { font-size: 12px; opacity: .85; }
+.tc-rec-ic { display: inline-flex; }
+.tc-use { border: 1.5px solid currentColor; background: #fff; color: inherit; border-radius: 99px; padding: 4px 12px; font: 600 12px 'Poppins', sans-serif; cursor: pointer; white-space: nowrap; }
+.tc-times { display: flex; align-items: center; gap: 8px; }
+.tc-time { position: relative; flex: 1; display: flex; flex-direction: column; padding: 12px 14px; border-radius: 18px; background: #fff; box-shadow: var(--shadow); border: 1px solid var(--line); margin: 0; cursor: pointer; color: var(--ink); overflow: hidden; }
+.tc-time-l { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); } .tc-time-l svg { color: #3f9a1b; }
+.tc-time b { font-size: 28px; letter-spacing: -.5px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tc-time b em { font-style: normal; font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.tc-time input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.lv-days.bad { background: var(--bad-bg); color: var(--bad); }
+
+/* payslips */
+.ps-hero { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 18px 20px; border-radius: 24px; color: #fff; background: linear-gradient(135deg, #2f7d12, #4aa81f); box-shadow: 0 12px 28px rgba(47, 125, 18, .3); margin-bottom: 16px; }
+.ps-hero h2 { margin: 0; font-size: 36px; letter-spacing: -1px; line-height: 1.1; } .ps-hero small, .ps-hero span { opacity: .85; }
+.ps-hero em { font-style: normal; margin-top: 8px; padding: 3px 12px; border-radius: 99px; background: rgba(255, 255, 255, .22); font-size: 12px; }
+.ps-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 28px 16px; } .ps-empty svg { color: #3f9a1b; } .ps-empty small { color: var(--muted); }
+.ps2 { padding: 0; overflow: hidden; }
+.ps2-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 0; background: transparent; font-family: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.ps2-ic { width: 42px; height: 42px; border-radius: 14px; background: #e6f4d6; color: #2f9a1f; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.ps2-m { flex: 1; min-width: 0; display: flex; flex-direction: column; } .ps2-m small, .ps2-net small { color: var(--muted); font-size: 12px; }
+.ps2-net { display: flex; flex-direction: column; align-items: flex-end; } .ps2-net b { font-size: 17px; }
+.ps2-head > svg { color: var(--muted); transition: transform .15s; } .ps2.open .ps2-head > svg { transform: rotate(90deg); }
+.ps2-body { padding: 0 16px 16px; border-top: 1px solid var(--line); }
+.ps2-bar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: #eef2e6; margin: 14px 0 8px; }
+.ps2-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); } .ps2-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; }
+.ps2-body h4 { margin: 16px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.ps-rows .tot { font-weight: 700; border-top: 1px solid var(--line); }
+
+/* weekly off */
+.wo-hero { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 18px 20px; border-radius: 24px; color: #fff; background: linear-gradient(135deg, #2f7d12, #4aa81f); box-shadow: 0 12px 28px rgba(47, 125, 18, .3); margin-bottom: 14px; }
+.wo-hero h2 { margin: 0; font-size: 30px; letter-spacing: -.5px; line-height: 1.15; } .wo-hero small, .wo-hero > span { opacity: .88; font-size: 13px; }
+.wo-week { display: flex; gap: 6px; margin-top: 12px; width: 100%; }
+.wo-week i { flex: 1; text-align: center; font-style: normal; font-size: 12px; padding: 6px 0; border-radius: 10px; background: rgba(255, 255, 255, .18); }
+.wo-week i.off { background: #fff; color: #2f7d12; font-weight: 700; }
+.wo-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--warn-bg); color: #7a4a00; font-size: 13px; margin-bottom: 4px; }
+.wo-note svg { flex: none; margin-top: 1px; } .wo-note.ok { background: var(--ok-bg); color: var(--ok); margin-bottom: 14px; }
+.wo-wait { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.wo-days { display: flex; gap: 6px; }
+.wo-days button { flex: 1; padding: 12px 0; border: 1.5px solid var(--line); border-radius: 14px; background: #fff; font: 600 13px 'Poppins', sans-serif; color: var(--ink); cursor: pointer; }
+.wo-days button.on { background: linear-gradient(180deg, #4aa81f, #2f7d12); border-color: #2f7d12; color: #fff; box-shadow: 0 6px 14px rgba(47, 125, 18, .3); }
+
+.wo-card { padding: 14px 16px; }
+.wo-top { display: flex; align-items: center; gap: 12px; }
+.wo-ic { width: 44px; height: 44px; border-radius: 14px; background: #e6f4d6; color: #2f9a1f; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.wo-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; } .wo-t b { font-size: 17px; } .wo-t small { color: var(--muted); font-size: 12px; }
+.wo-change { border: 1.5px solid #3f9a1b; background: #f3fae9; color: #2f7d12; border-radius: 99px; padding: 6px 16px; font: 600 13px 'Poppins', sans-serif; cursor: pointer; }
+.wo-card .wo-week { margin-top: 12px; } .wo-card .wo-week i { background: #eef2e6; color: var(--muted); } .wo-card .wo-week i.off { background: #3f9a1b; color: #fff; }
