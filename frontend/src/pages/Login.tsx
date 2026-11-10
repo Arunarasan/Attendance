@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { post, setAuth } from '../lib/api'
+import './login.css'
 
 const REMEMBER_KEY = 'attendance.lastId'
 const readRemembered = () => { try { return localStorage.getItem(REMEMBER_KEY) ?? '' } catch { return '' } }
@@ -15,9 +16,6 @@ const IconEye = ({ off }: { off: boolean }) => <Svg>{off ? <><path d="M3 3l18 18
 const IconArrow = () => <Svg size={20}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>
 const IconFace = () => <Svg size={20}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><path d="M9 10v1M15 10v1M9.500 15c.7.7 1.500 1 2.500 1s1.800-.3 2.500-1" /></Svg>
 const IconCalendar = () => <Svg size={34}><rect x="3.500" y="5" width="17" height="15.500" rx="3" /><path d="M8 3v4M16 3v4" /><path d="M8.500 13l2.500 2.500 4.500-5" /></Svg>
-const IconTouch = () => <Svg size={26}><path d="M12 3a7 7 0 0 0-7 7v3M12 7a3 3 0 0 0-3 3v7M12 7a3 3 0 0 1 3 3v2c0 3-.5 5-1.500 8M19 12v-2a7 7 0 0 0-3-5.700M8 21c.8-2 1-4 1-6" /></Svg>
-const IconBars = () => <Svg size={26}><rect x="4" y="13" width="4" height="7" rx="1" /><rect x="10" y="8" width="4" height="12" rx="1" /><rect x="16" y="4" width="4" height="16" rx="1" /></Svg>
-const IconTeam = () => <Svg size={26}><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.500 2.700-5.500 6-5.500s6 2 6 5.500" /><circle cx="17" cy="9" r="2.500" /><path d="M16.500 14.500c2.700 0 4.500 1.700 4.500 4.500" /></Svg>
 
 /** One identifier box: an email signs in as HR/admin; an employee ID also asks for the phone number. */
 export default function Login({ onDone }: { onDone: () => void }) {
@@ -56,10 +54,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="lg">
-      <div className="lg-bg" aria-hidden="true">
-        <span className="lg-orb lg-orb-a" /><span className="lg-orb lg-orb-b" />
-        <svg className="lg-wave" viewBox="0 0 1440 220" preserveAspectRatio="none"><path d="M0 90C240 30 420 150 720 110S1180 30 1440 100V220H0z" fill="url(#w1)" /><path d="M0 150C300 100 560 190 860 150S1250 110 1440 160V220H0z" fill="url(#w2)" opacity=".9" /><defs><linearGradient id="w1" x1="0" x2="1"><stop offset="0" stopColor="#fdba74" /><stop offset="1" stopColor="#fb923c" /></linearGradient><linearGradient id="w2" x1="0" x2="1"><stop offset="0" stopColor="#fb923c" /><stop offset="1" stopColor="#f97316" /></linearGradient></defs></svg>
-      </div>
+      <div className="lg-bg" aria-hidden="true" />
 
       <main className="lg-main">
         <header className="lg-brand">
@@ -105,11 +100,6 @@ export default function Login({ onDone }: { onDone: () => void }) {
           <p className="lg-foot">Shared office device? <Link to="/kiosk" className="lg-link">Kiosk</Link></p>
         </section>
 
-        <ul className="lg-feats">
-          <li><span><IconTouch /></span>Easy Check-in</li>
-          <li><span><IconBars /></span>Real-time Reports</li>
-          <li><span><IconTeam /></span>Team Management</li>
-        </ul>
       </main>
     </div>
   )
