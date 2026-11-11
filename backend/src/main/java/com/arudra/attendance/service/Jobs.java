@@ -47,6 +47,8 @@ public class Jobs implements ApplicationRunner {
     public void purgeOldPhotos() {
         int n = faceRequests.purgeOld();
         if (n > 0) log.info("Deleted {} decided photo request(s) older than 30 days", n);
+        int p = time.purgePhotos();
+        if (p > 0) log.info("Deleted {} punch photo(s) older than 30 days after approval", p);
     }
 
     @Override

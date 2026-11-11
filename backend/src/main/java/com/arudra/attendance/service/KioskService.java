@@ -18,15 +18,21 @@ import java.util.*;
 /** Shared office kiosk: pairing, face 1:N match, manual fallback. Verification is soft; weak matches go to HR. */
 @Service
 public class KioskService {
-    public record PunchResult(String outcome, String employeeName, Double faceDistance, boolean flagged, String message) {}
+    public record PunchResult(String outcome, String employeeName, Double faceDistance, boolean flagged, String message, List<VerificationService.Issue> issues) {
+        public PunchResult(String outcome, String employeeName, Double faceDistance, boolean flagged, String message) {
+            this(outcome, employeeName, faceDistance, flagged, message, List.of());
+        }
+    }
 
     private final JdbcClient db;
     private final TimeService time;
     private final FaceService faces;
     private final VerificationService verification;
     private final AppProps.Attendance cfg;
+    private final GeneralSettingsService general;
 
-    public KioskService(JdbcClient db, TimeService time, FaceService faces, VerificationService verification, AppProps props) {
+    public KioskService(JdbcClient db, TimeService time, FaceService faces, VerificationService verification, AppProps props, GeneralSettingsService general) {
+        this.general = general;
         this.db = db;
         this.time = time;
         this.faces = faces;
@@ -121,12 +127,26 @@ public class KioskService {
      * location and the office network are checked and a failure (or a weak match) flags the punch for HR.
      */
     public PunchResult punchFaceOpen(double[] descriptor, VerificationService.PunchInput ctx) {
+        return punchFaceOpen(descriptor, ctx, TimeService.Decision.NONE);
+    }
+
+    public PunchResult punchFaceOpen(double[] descriptor, VerificationService.PunchInput ctx, TimeService.Decision decision) {
         Who w = identify(descriptor);
         if (w.failure() != null) return w.failure();
         M.Emp emp = time.employee(w.employeeId());
         if (!emp.active()) return new PunchResult("NOT_RECOGNISED", null, null, false, "Face not recognised");
         Eval ev = verification.evaluateFacePunch(emp, ctx, w.distance(), w.weak());
-        PunchResult r = toggle(emp.id(), null, "FACE", ev);
+        String note;
+        try {
+            note = time.gate(ev.issues(), ev.flagged(), decision);
+        } catch (ApiException e) {
+            // Nothing is recorded: the person at the camera decides whether to fix it or send it to HR.
+            if ("NEEDS_CONFIRMATION".equals(e.code()) || "PUNCH_BLOCKED".equals(e.code())) {
+                return new PunchResult(e.code(), emp.name(), w.distance(), true, e.getMessage(), ev.issues());
+            }
+            throw e;
+        }
+        PunchResult r = toggle(emp.id(), null, "FACE", ev, note, ev.flagged() && decision.confirm() ? decision.photo() : null);
         learnFrom(r, w, descriptor);
         return r;
     }
@@ -150,11 +170,15 @@ public class KioskService {
     }
 
     PunchResult toggle(long employeeId, Long kioskId, String source, Double faceDistance, boolean flagged, String reason) {
-        return toggle(employeeId, kioskId, source, new Eval(flagged, reason, source, null, null, null, null, null, null, faceDistance));
+        return toggle(employeeId, kioskId, source, new Eval(flagged, reason, source, null, null, null, null, null, null, faceDistance, List.of()));
+    }
+
+    PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev) {
+        return toggle(employeeId, kioskId, source, ev, null, null);
     }
 
     @Transactional
-    PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev) {
+    PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev, String note, String photo) {
         M.Emp emp = time.employee(employeeId);
         M.Session open = time.openSession(employeeId);
         LocalDateTime now = time.now();
@@ -164,13 +188,15 @@ public class KioskService {
             if (open.workDate().isBefore(now.toLocalDate())) {
                 return new PunchResult("PAST_OPEN", emp.name(), faceDistance, false, "Yesterday's session is still open. Ask HR.");
             }
-            if (Duration.between(open.clockIn(), now).getSeconds() < cfg.kioskMinGapSeconds()) {
+            if (Duration.between(open.clockIn(), now).getSeconds() < general.get().kioskMinGapSeconds()) {
                 return new PunchResult("TOO_SOON", emp.name(), faceDistance, false, "Already punched a moment ago");
             }
-            time.endSession(open, ev);
+            M.Session ended = time.endSession(open, ev, note);
+            time.savePhoto(ended.id(), "OUT", photo);
             return new PunchResult("CHECKED_OUT", emp.name(), faceDistance, flagged, "Goodbye, " + emp.name());
         }
-        time.startSession(employeeId, ev, source, kioskId, faceDistance, null);
+        M.Session started = time.startSession(employeeId, ev, source, kioskId, faceDistance, null, note);
+        time.savePhoto(started.id(), "IN", photo);
         return new PunchResult("CHECKED_IN", emp.name(), faceDistance, flagged, "Welcome, " + emp.name());
     }
 }

@@ -68,7 +68,8 @@ public class PayrollService {
     /** One employee's pay for a month, before it is saved as a payslip. */
     public record Line(long employeeId, String employeeName, String mode, BigDecimal regularHours, BigDecimal overtimeHours, BigDecimal gross,
                        BigDecimal deductions, String deductionDetail, BigDecimal net, double paidLeaveDays, double unpaidLeaveDays, int holidayDays,
-                       BigDecimal creditHours, BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, Integer score, boolean lopApplied) {}
+                       BigDecimal creditHours, BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, Integer score, boolean lopApplied,
+                       String shortfallMethod, BigDecimal requiredHours, BigDecimal shortfallHours, BigDecimal shortfallAmount, BigDecimal extraHours, BigDecimal extraAmount) {}
 
     /** Working days used as the monthly divisor, by the company's chosen basis. */
     public static int workingDays(String basis, YearMonth ym, int scheduledDays) {
@@ -100,6 +101,35 @@ public class PayrollService {
         return new Calc(BigDecimal.ZERO, hours(overtimeMinutes), regular.add(otPay).add(al).setScale(2, RoundingMode.HALF_UP));
     }
 
+    /** Monthly pay by hours. */
+    public record HoursCalc(BigDecimal requiredHours, BigDecimal countedHours, BigDecimal shortfallHours, BigDecimal shortfallAmount,
+                            BigDecimal extraHours, BigDecimal extraAmount, BigDecimal salaryPaid, BigDecimal gross) {}
+
+    /**
+     * Monthly salary paid by hours. The salary covers (working days - free off days) x standard hours, so the hourly rate is
+     * salary / those hours. Fewer hours than that (worked plus paid leave and paid holidays) cost the missing hours at the rate;
+     * more hours earn extra pay at the rate x the overtime multiplier (only for overtime-eligible people). Allowances are paid in full.
+     */
+    public static HoursCalc calculateMonthlyHours(BigDecimal baseSalary, BigDecimal allowances, int workingDays, int freeOffDays, int standardDailyHours,
+                                                  int workedMinutes, int creditMinutes, BigDecimal overtimeMultiplier, boolean otEligible) {
+        int requiredDays = Math.max(1, workingDays - Math.max(0, freeOffDays));
+        int requiredMin = requiredDays * standardDailyHours * 60;
+        BigDecimal rate = baseSalary.divide(BigDecimal.valueOf(requiredMin), 8, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(60));
+        int counted = workedMinutes + creditMinutes;
+        int diff = counted - requiredMin;
+        BigDecimal shortHours = BigDecimal.ZERO, shortAmt = BigDecimal.ZERO, extraHours = BigDecimal.ZERO, extraAmt = BigDecimal.ZERO;
+        if (diff < 0) {
+            shortHours = hours(-diff);
+            shortAmt = rate.multiply(BigDecimal.valueOf(-diff)).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP).min(baseSalary);
+        } else if (diff > 0 && otEligible) {
+            extraHours = hours(diff);
+            extraAmt = rate.multiply(BigDecimal.valueOf(diff)).divide(BigDecimal.valueOf(60), 8, RoundingMode.HALF_UP).multiply(overtimeMultiplier).setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal salaryPaid = baseSalary.subtract(shortAmt);
+        BigDecimal gross = salaryPaid.add(extraAmt).add(allowances).setScale(2, RoundingMode.HALF_UP);
+        return new HoursCalc(hours(requiredMin), hours(counted), shortHours, shortAmt, extraHours, extraAmt, salaryPaid, gross);
+    }
+
     /** What loss of pay cost in money: the base and allowances that were not paid. */
     public static BigDecimal lopAmount(BigDecimal baseSalary, BigDecimal allowances, double lopDays, int workingDays) {
         int wd = Math.max(1, workingDays);
@@ -107,8 +137,19 @@ public class PayrollService {
         return baseSalary.add(allowances).multiply(frac).setScale(2, RoundingMode.HALF_UP);
     }
 
+    /** The first day of [ym] this person is expected to work: their joining day if they joined during that month, else day 1. */
+    private int firstExpectedDay(long employeeId, YearMonth ym) {
+        LocalDate joined = db.sql("SELECT CAST(created_at AS DATE) FROM employees WHERE id = ?").param(employeeId).query(LocalDate.class).optional().orElse(null);
+        return joined != null && YearMonth.from(joined).equals(ym) ? joined.getDayOfMonth() : 1;
+    }
+
     /** Works out every active employee's pay for the month without saving anything. */
     public List<Line> preview(String period, String mode) {
+        return preview(period, mode, null);
+    }
+
+    /** As {@link #preview(String, String)}, optionally for one employee only. */
+    public List<Line> preview(String period, String mode, Long onlyEmployee) {
         if (mode == null) mode = settings.get().defaultMode();
         if (!"HOURLY".equals(mode) && !"MONTHLY".equals(mode)) throw ApiException.bad("mode must be HOURLY or MONTHLY");
         YearMonth ym;
@@ -123,9 +164,11 @@ public class PayrollService {
                 .query(M.Emp.class).list();
         record Att(int workedMinutes, int overtimeMinutes) {}
         for (M.Emp e : emps) {
+            if (onlyEmployee != null && e.id() != onlyEmployee) continue;
             PolicyService.EmpPay ep = policies.empPay(e.id());
             // each employee's own weekly off decides their working days and which holidays fall on a working day
-            int wd = workingDays(pol.workingDaysBasis(), ym, calendar.scheduledDaysIn(e.id(), ym));
+            int firstDay = firstExpectedDay(e.id(), ym);
+            int wd = workingDays(pol.workingDaysBasis(), ym, calendar.scheduledDaysIn(e.id(), ym, firstDay));
             int holidayDays = calendar.paidHolidayWorkdays(e.id(), from, to);
             String empMode = ep.payMode() != null ? ep.payMode() : mode;
             int worked = 0, ot = 0;
@@ -139,10 +182,15 @@ public class PayrollService {
             int creditMinutes = (int) Math.round(paidDays * st.standardDailyHours() * 60);
 
             DayRulesService.Month dm = days.month(e.id(), ym);
-            boolean lopApplied = pol.lopEnabled() && "MONTHLY".equals(empMode);
+            boolean byHours = "HOURS".equals(pol.shortfallMethod()) && "MONTHLY".equals(empMode);
+            boolean lopApplied = !byHours && pol.lopEnabled() && "MONTHLY".equals(empMode);
             Calc c;
             BigDecimal lopAmt = BigDecimal.ZERO;
-            if (lopApplied) {
+            HoursCalc hc = null;
+            if (byHours) {
+                hc = calculateMonthlyHours(e.baseSalary(), ep.allowances(), wd, pol.freeOffDays(), st.standardDailyHours(), worked, creditMinutes, st.overtimeMultiplier(), ep.otEligible());
+                c = new Calc(hours(worked), hc.extraHours(), hc.gross());
+            } else if (lopApplied) {
                 c = calculateMonthlyLop(e.baseSalary(), ep.allowances(), dm.lopDays(), wd, ot, st.standardDailyHours(), st.overtimeMultiplier(), ep.otEligible());
                 c = new Calc(hours(Math.max(0, worked - ot)), c.overtimeHours(), c.gross());
                 lopAmt = lopAmount(e.baseSalary(), ep.allowances(), dm.lopDays(), wd);
@@ -156,7 +204,9 @@ public class PayrollService {
             DeductionService.Applied ded = DeductionService.apply(rules, gross);
             out.add(new Line(e.id(), e.name(), empMode, c.regularHours(), c.overtimeHours(), gross, ded.total(), ded.detail().isEmpty() ? null : ded.detail(),
                     gross.subtract(ded.total()), leaveDays.paid(), leaveDays.unpaid(), holidayDays, hours(creditMinutes),
-                    BigDecimal.valueOf(lopApplied ? dm.lopDays() : 0).setScale(1, RoundingMode.HALF_UP), lopAmt, ep.allowances(), bonus, sc.score(), lopApplied));
+                    BigDecimal.valueOf(lopApplied ? dm.lopDays() : 0).setScale(1, RoundingMode.HALF_UP), lopAmt, ep.allowances(), bonus, sc.score(), lopApplied,
+                    byHours ? "HOURS" : null, hc == null ? BigDecimal.ZERO : hc.requiredHours(), hc == null ? BigDecimal.ZERO : hc.shortfallHours(),
+                    hc == null ? BigDecimal.ZERO : hc.shortfallAmount(), hc == null ? BigDecimal.ZERO : hc.extraHours(), hc == null ? BigDecimal.ZERO : hc.extraAmount()));
         }
         return out;
     }
@@ -174,12 +224,14 @@ public class PayrollService {
             db.sql("""
                     INSERT INTO payslips (run_id, employee_id, period, regular_hours, overtime_hours, gross, adjustments, net,
                       paid_leave_days, unpaid_leave_days, holiday_days, credit_hours, deductions, deduction_detail,
-                      lop_days, lop_amount, allowances, bonus, pay_mode, score)
-                    VALUES (?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?)""")
+                      lop_days, lop_amount, allowances, bonus, pay_mode, score,
+                      shortfall_method, required_hours, shortfall_hours, shortfall_amount, extra_hours, extra_amount)
+                    VALUES (?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""")
                     .param(runId).param(l.employeeId()).param(period).param(l.regularHours()).param(l.overtimeHours()).param(l.gross()).param(l.net())
                     .param(BigDecimal.valueOf(l.paidLeaveDays())).param(BigDecimal.valueOf(l.unpaidLeaveDays())).param(BigDecimal.valueOf(l.holidayDays()))
                     .param(l.creditHours()).param(l.deductions()).param(l.deductionDetail())
-                    .param(l.lopDays()).param(l.lopAmount()).param(l.allowances()).param(l.bonus()).param(l.mode()).param(l.score()).update();
+                    .param(l.lopDays()).param(l.lopAmount()).param(l.allowances()).param(l.bonus()).param(l.mode()).param(l.score())
+                    .param(l.shortfallMethod()).param(l.requiredHours()).param(l.shortfallHours()).param(l.shortfallAmount()).param(l.extraHours()).param(l.extraAmount()).update();
         }
         return runId;
     }
@@ -190,7 +242,8 @@ public class PayrollService {
 
     private static final String SLIP_COLS = "p.id, p.run_id, p.employee_id, p.period, p.regular_hours, p.overtime_hours, p.gross, p.adjustments, p.net, "
             + "p.paid_leave_days, p.unpaid_leave_days, p.holiday_days, p.credit_hours, p.deductions, p.deduction_detail, "
-            + "p.lop_days, p.lop_amount, p.allowances, p.bonus, p.pay_mode, p.score";
+            + "p.lop_days, p.lop_amount, p.allowances, p.bonus, p.pay_mode, p.score, "
+            + "p.shortfall_method, p.required_hours, p.shortfall_hours, p.shortfall_amount, p.extra_hours, p.extra_amount";
 
     public List<M.PayslipView> payslips(long runId) {
         return db.sql("SELECT " + SLIP_COLS.replace("p.employee_id,", "p.employee_id, e.name AS employee_name,")

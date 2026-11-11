@@ -22,11 +22,13 @@ public class HrPayLeaveController {
     public record ApplyLeaveBody(Long employeeId, Long leaveTypeId, LocalDate startDate, LocalDate endDate, Boolean halfDay, String reason) {}
 
     private final SettingsService settings;
+    private final com.arudra.attendance.service.GeneralSettingsService general;
     private final CalendarService calendar;
     private final LeaveService leave;
     private final DeductionService deductions;
 
-    public HrPayLeaveController(SettingsService settings, CalendarService calendar, LeaveService leave, DeductionService deductions) {
+    public HrPayLeaveController(SettingsService settings, CalendarService calendar, LeaveService leave, DeductionService deductions, com.arudra.attendance.service.GeneralSettingsService general) {
+        this.general = general;
         this.settings = settings;
         this.calendar = calendar;
         this.leave = leave;
@@ -46,6 +48,20 @@ public class HrPayLeaveController {
         settings.update(b.standardDailyHours(), b.weeklyOffDays(), b.overtimeMultiplier(), b.defaultMode());
         return getSettings();
     }
+
+    @org.springframework.beans.factory.annotation.Value("${app.version:dev}") private String appVersion;
+
+    /** About this installation: shown on Settings, App info. */
+    @GetMapping("/app-info")
+    public Map<String, Object> appInfo() {
+        var now = java.time.ZonedDateTime.now();
+        return Map.of("appName", "Arudra Attender", "backendVersion", appVersion, "serverTime", now.toOffsetDateTime().toString(),
+                "timeZone", now.getZone().getId(), "java", System.getProperty("java.version"));
+    }
+
+    // ---- general settings (company profile and punch rules) ----
+    @GetMapping("/general-settings") public com.arudra.attendance.service.GeneralSettingsService.General getGeneral() { return general.get(); }
+    @PutMapping("/general-settings") public com.arudra.attendance.service.GeneralSettingsService.General putGeneral(@RequestBody com.arudra.attendance.service.GeneralSettingsService.Input b) { return general.update(b); }
 
     // ---- holidays ----
     @GetMapping("/holidays") public List<M.Holiday> holidays(@RequestParam(required = false) Integer year) { return calendar.holidays(year == null ? LocalDate.now().getYear() : year); }

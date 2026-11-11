@@ -6,10 +6,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <title>Attendance</title>
+    <title>Arudra Attender</title>
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <style>
+      .ld { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: #F8F5EA url('/app-bg.webp') center top / cover no-repeat; }
+      .ld-in { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+      .ld-logo { width: min(280px, 72vw); height: auto; }
+      .ld-bar { width: min(200px, 56vw); height: 5px; border-radius: 99px; background: rgba(40, 122, 62, .15); overflow: hidden; }
+      .ld-bar i { display: block; width: 40%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #287A3E, #A8C957, #D4AF37); animation: ld-sweep 1.3s ease-in-out infinite; }
+      @keyframes ld-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+      body { margin: 0; background: #F8F5EA; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="ld" role="status"><div class="ld-in"><img class="ld-logo" src="/logo.webp" alt="Arudra Attender" /><div class="ld-bar"><i></i></div></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

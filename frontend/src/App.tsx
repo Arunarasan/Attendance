@@ -7,6 +7,7 @@ import Hr from './pages/Hr'
 import Kiosk from './pages/Kiosk'
 import AppPair from './pages/AppPair'
 import FacePunch from './pages/FacePunch'
+import LoadingScreen from './components/LoadingScreen'
 
 export type Me = { id: number; name: string; role: string; employeeCode: string }
 
@@ -27,7 +28,7 @@ function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (!ready) return <div className="wrap muted">Loading…</div>
+  if (!ready) return <LoadingScreen />
   const isHr = me?.role === 'HR' || me?.role === 'ADMIN'
   // Not signed in: go to the sign-in page (face punch is a button there). Signed in: straight to home, no sign-in again.
   const loginPath = '/login'

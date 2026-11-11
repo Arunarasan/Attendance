@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { loadFace, scanForFace, startCamera, stopCamera } from '../lib/face'
+import { loadFace, scanForFace, snapFrame, startCamera, stopCamera } from '../lib/face'
 
 /**
  * Opens the camera, waits for one face plus a small head turn (a deterrent against a held-up photo), then returns its
  * descriptor (averaged over several frames). `onCancel` lets the person skip; the server then flags the punch for HR.
  */
-export default function FaceCapture({ title, onDone, onCancel }: { title: string; onDone: (descriptor: number[]) => void; onCancel: () => void }) {
+export default function FaceCapture({ title, onDone, onCancel }: { title: string; onDone: (descriptor: number[], photo: string | null) => void; onCancel: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const [hint, setHint] = useState('Starting camera…')
   const [err, setErr] = useState('')
@@ -23,7 +23,7 @@ export default function FaceCapture({ title, onDone, onCancel }: { title: string
       setHint('Look at the camera')
       await scanForFace({
         video: video.current!, isStopped: () => stop, onHint: setHint, onLight: setFill, once: true,
-        onDescriptor: d => { stop = true; stopCamera(stream); onDone(d) },
+        onDescriptor: d => { const photo = snapFrame(video.current); stop = true; stopCamera(stream); onDone(d, photo) },
       })
     })()
     return () => { stop = true; stopCamera(stream) }

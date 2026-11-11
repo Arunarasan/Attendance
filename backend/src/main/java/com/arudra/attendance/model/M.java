@@ -27,11 +27,12 @@ public final class M {
                           LocalDateTime breakStarted, int breakMinutes, String source, String verificationMethod,
                           boolean verified, boolean flagged, String flagReason, Double distanceMeters,
                           Long deviceId, Boolean deviceVerified, Long kioskId, Double faceDistance,
-                          String approvalStatus, Long approvedBy, LocalDateTime approvedAt) {}
+                          String approvalStatus, Long approvedBy, LocalDateTime approvedAt, String employeeNote) {}
 
     public record PendingSession(long id, long employeeId, String employeeName, String employeeCode, LocalDate workDate,
                                  LocalDateTime clockIn, LocalDateTime clockOut, String source, String flagReason,
-                                 Double distanceMeters, Double faceDistance) {}
+                                 Double distanceMeters, Double faceDistance, String employeeNote,
+                                 boolean hasPhotoIn, boolean hasPhotoOut) {}
 
     public record Day(long employeeId, LocalDate workDate, LocalDateTime checkIn, LocalDateTime checkOut,
                       int breakMinutes, int workedMinutes, int overtimeMinutes) {}
@@ -57,13 +58,15 @@ public final class M {
                           BigDecimal overtimeHours, BigDecimal gross, BigDecimal adjustments, BigDecimal net,
                           BigDecimal paidLeaveDays, BigDecimal unpaidLeaveDays, BigDecimal holidayDays, BigDecimal creditHours,
                           BigDecimal deductions, String deductionDetail, BigDecimal lopDays, BigDecimal lopAmount,
-                          BigDecimal allowances, BigDecimal bonus, String payMode, Integer score) {}
+                          BigDecimal allowances, BigDecimal bonus, String payMode, Integer score,
+                          String shortfallMethod, BigDecimal requiredHours, BigDecimal shortfallHours, BigDecimal shortfallAmount, BigDecimal extraHours, BigDecimal extraAmount) {}
 
     public record PayslipView(long id, long runId, long employeeId, String employeeName, String period,
                               BigDecimal regularHours, BigDecimal overtimeHours, BigDecimal gross,
                               BigDecimal adjustments, BigDecimal net, BigDecimal paidLeaveDays, BigDecimal unpaidLeaveDays,
                               BigDecimal holidayDays, BigDecimal creditHours, BigDecimal deductions, String deductionDetail,
-                              BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, String payMode, Integer score) {}
+                              BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, String payMode, Integer score,
+                              String shortfallMethod, BigDecimal requiredHours, BigDecimal shortfallHours, BigDecimal shortfallAmount, BigDecimal extraHours, BigDecimal extraAmount) {}
 
     public record Holiday(long id, LocalDate holidayDate, String name, boolean paid) {}
 

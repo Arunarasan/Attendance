@@ -13,13 +13,14 @@ import java.util.Set;
 public class PolicyService {
     public record Policy(String workingDaysBasis, int otAfterMinutes, int otDailyCapMinutes, boolean lopEnabled, int graceMinutes,
                          int halfDayMinMinutes, LocalTime shiftStart, int lateGraceMinutes, int lateCountForHalfDay,
-                         int wAttendance, int wPunctuality, int wHours, int wDiscipline, int bonusMinScore, BigDecimal bonusAmount) {}
+                         int wAttendance, int wPunctuality, int wHours, int wDiscipline, int bonusMinScore, BigDecimal bonusAmount,
+                         String shortfallMethod, int freeOffDays) {}
 
     public record EmpPay(long employeeId, String payMode, BigDecimal allowances, boolean otEligible) {}
 
     private static final Set<String> BASES = Set.of("SCHEDULED", "CALENDAR", "FIXED_26", "FIXED_30");
     private static final String COLS = "working_days_basis, ot_after_minutes, ot_daily_cap_minutes, lop_enabled, grace_minutes, half_day_min_minutes, shift_start, "
-            + "late_grace_minutes, late_count_for_half_day, w_attendance, w_punctuality, w_hours, w_discipline, bonus_min_score, bonus_amount";
+            + "late_grace_minutes, late_count_for_half_day, w_attendance, w_punctuality, w_hours, w_discipline, bonus_min_score, bonus_amount, shortfall_method, free_off_days";
 
     private final JdbcClient db;
 
@@ -43,14 +44,16 @@ public class PolicyService {
         if (p.wAttendance() + p.wPunctuality() + p.wHours() + p.wDiscipline() <= 0) throw ApiException.bad("At least one score weight must be above 0");
         range(p.bonusMinScore(), 0, 100, "Bonus minimum score");
         if (p.bonusAmount() == null || p.bonusAmount().signum() < 0) throw ApiException.bad("Bonus amount cannot be negative");
+        if (!"DAYS".equals(p.shortfallMethod()) && !"HOURS".equals(p.shortfallMethod())) throw ApiException.bad("Shortfall method must be DAYS or HOURS");
+        range(p.freeOffDays(), 0, 10, "Free off days");
         if (p.shiftStart() == null) throw ApiException.bad("Shift start time is required");
         db.sql("""
                 UPDATE pay_policy SET working_days_basis=?, ot_after_minutes=?, ot_daily_cap_minutes=?, lop_enabled=?, grace_minutes=?, half_day_min_minutes=?,
                   shift_start=?, late_grace_minutes=?, late_count_for_half_day=?, w_attendance=?, w_punctuality=?, w_hours=?, w_discipline=?,
-                  bonus_min_score=?, bonus_amount=? WHERE id = 1""")
+                  bonus_min_score=?, bonus_amount=?, shortfall_method=?, free_off_days=? WHERE id = 1""")
                 .param(p.workingDaysBasis()).param(p.otAfterMinutes()).param(p.otDailyCapMinutes()).param(p.lopEnabled()).param(p.graceMinutes())
                 .param(p.halfDayMinMinutes()).param(p.shiftStart()).param(p.lateGraceMinutes()).param(p.lateCountForHalfDay())
-                .param(p.wAttendance()).param(p.wPunctuality()).param(p.wHours()).param(p.wDiscipline()).param(p.bonusMinScore()).param(p.bonusAmount()).update();
+                .param(p.wAttendance()).param(p.wPunctuality()).param(p.wHours()).param(p.wDiscipline()).param(p.bonusMinScore()).param(p.bonusAmount()).param(p.shortfallMethod()).param(p.freeOffDays()).update();
         return get();
     }
 

@@ -1,8 +1,8 @@
-/* AttendancePro green theme (light only, so every screen matches the design) */
+/* Arudra Attender green theme (light only, so every screen matches the design) */
 :root {
-  --bg: #F1EEDD; --card: #F8F5EA; --ink: #174D2C; --muted: #5f7a63; --line: #dfe3cb;
+  --bg: #F1EEDD; --card: #FBF9F1; --ink: #382F25; --muted: #5f7a63; --line: #dfe3cb;
   --brand: #287A3E; --brand-2: #287A3E; --brand-ink: #fff; --brand-soft: #dcebcf;
-  --side: #174D2C; --side-2: #1f5f37; --side-ink: #e8f3df;
+  --side: #082F1B; --side-2: #104526; --side-ink: #e8f3df;
   --warn: #b45309; --warn-bg: #fef3c7; --bad: #dc2626; --bad-bg: #fde8e8; --ok-bg: #e3f5d6; --ok: #287A3E; --accent: #E87516;
   --radius: 16px; --shadow: 0 6px 22px rgba(23, 77, 44, .10);
   color-scheme: light;
@@ -105,3 +105,15 @@ input.bad { border-color: var(--bad); }
 .toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; width: min(420px, calc(100% - 32px)); }
 .toast { background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 .toast.bad { background: var(--bad); color: #fff; }
+
+/* loading page */
+.ld { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: #F8F5EA url('/app-bg.webp') center top / cover no-repeat; z-index: 100; }
+.ld-in { display: flex; flex-direction: column; align-items: center; gap: 18px; animation: ld-in .5s ease-out both; }
+.ld-logo { width: min(280px, 72vw); height: auto; filter: drop-shadow(0 8px 18px rgba(23, 77, 44, .2)); animation: ld-pulse 2.4s ease-in-out infinite; }
+.ld-bar { width: min(200px, 56vw); height: 5px; border-radius: 99px; background: rgba(40, 122, 62, .15); overflow: hidden; }
+.ld-bar i { display: block; width: 40%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #287A3E, #A8C957, #D4AF37); animation: ld-sweep 1.3s ease-in-out infinite; }
+.ld-txt { margin: 0; color: #5f7a63; font-size: 14px; letter-spacing: .02em; }
+@keyframes ld-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+@keyframes ld-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes ld-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ld-logo, .ld-bar i, .ld-in { animation: none; } .ld-bar i { width: 100%; } }

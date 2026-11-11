@@ -73,3 +73,6 @@
   .lg-feats { font-size: 11px; }
   .lg-main { padding-bottom: 210px; }
 }
+
+.lg-logo-img { display: block; width: min(300px, 78vw); height: auto; margin: 0 auto 4px; filter: drop-shadow(0 6px 14px rgba(23, 77, 44, .18)); }
+.lg-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

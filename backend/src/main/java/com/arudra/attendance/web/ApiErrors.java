@@ -13,8 +13,11 @@ import java.util.Map;
 @RestControllerAdvice
 public class ApiErrors {
     @ExceptionHandler(ApiException.class)
-    ResponseEntity<Map<String, String>> api(ApiException e) {
-        return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
+    ResponseEntity<Map<String, Object>> api(ApiException e) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>(e.data());
+        body.put("code", e.code());
+        body.put("message", e.getMessage());
+        return ResponseEntity.status(e.status()).body(body);
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentNotValidException.class, MethodArgumentTypeMismatchException.class})

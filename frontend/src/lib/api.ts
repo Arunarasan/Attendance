@@ -21,7 +21,7 @@ export function setAuth(a: Auth | null) {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string, public data?: any) {
     super(message)
   }
 }
@@ -42,7 +42,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
       setAuth(null)
       window.dispatchEvent(new Event('auth-lost'))
     }
-    throw new ApiError(res.status, data?.code ?? 'ERROR', data?.message ?? `Request failed (${res.status})`)
+    throw new ApiError(res.status, data?.code ?? 'ERROR', data?.message ?? `Request failed (${res.status})`, data)
   }
   return data as T
 }

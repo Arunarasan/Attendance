@@ -25,3 +25,13 @@
 .wk-cmp small { color: var(--muted); font-size: 11px; } .wk-cmp b { font-size: 14px; }
 .wk-cmp .new { background: var(--ok-bg); } .wk-cmp .new b { color: var(--ok); }
 .wk-note { margin-top: 6px; height: 38px; border-radius: 12px; }
+
+.ap-chip { display: inline-block; font-style: normal; margin: 0 6px 4px 0; padding: 2px 10px; border-radius: 99px; background: #fdf3f1; border: 1px solid #f4c7c0; color: #b42323; font-size: 12px; }
+.ap-reason { margin: 6px 0 0; padding: 8px 12px; border-radius: 12px; background: #e9f1dc; color: #174D2C; font-size: 13px; }
+
+.ap-frames { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.ap-frame { margin: 0; width: 120px; } .ap-frame button { display: block; width: 100%; padding: 4px; border: 1.5px solid #dfe3cb; border-radius: 16px; background: #FBF9F1; box-shadow: var(--shadow); cursor: zoom-in; }
+.ap-frame img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 12px; transform: scaleX(-1); }
+.ap-frame figcaption { margin-top: 4px; font-size: 11px; color: var(--muted); text-align: center; }
+.ap-zoom { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: rgba(8, 47, 27, .75); cursor: zoom-out; padding: 20px; }
+.ap-zoom img { max-width: min(560px, 100%); max-height: 90vh; border-radius: 20px; transform: scaleX(-1); box-shadow: 0 20px 60px rgba(0, 0, 0, .4); }

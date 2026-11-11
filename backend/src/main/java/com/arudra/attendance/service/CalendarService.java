@@ -96,9 +96,14 @@ public class CalendarService {
 
     /** The employee's working days in a month before holidays are removed (their weekly offs only): the monthly-pay divisor. */
     public int scheduledDaysIn(long employeeId, YearMonth ym) {
+        return scheduledDaysIn(employeeId, ym, 1);
+    }
+
+    /** Working days from [firstDay] to the end of the month (a mid-month joiner is only expected from the day they joined). */
+    public int scheduledDaysIn(long employeeId, YearMonth ym, int firstDay) {
         var off = offDays.resolver(employeeId);
         int days = 0;
-        for (int d = 1; d <= ym.lengthOfMonth(); d++) if (!off.apply(ym.atDay(d)).contains(ym.atDay(d).getDayOfWeek())) days++;
+        for (int d = Math.max(1, firstDay); d <= ym.lengthOfMonth(); d++) if (!off.apply(ym.atDay(d)).contains(ym.atDay(d).getDayOfWeek())) days++;
         return days;
     }
 

@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Face-only punch: no sign-in, the face says who it is. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "app.attendance.on-check-fail=FLAG",
         "app.attendance.kiosk-min-gap-seconds=0",
         "spring.datasource.url=jdbc:h2:mem:facepunch;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1"})
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

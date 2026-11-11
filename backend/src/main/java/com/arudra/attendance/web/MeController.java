@@ -23,7 +23,7 @@ public class MeController {
     public record Login(String email, String password) {}
     public record EmployeeLogin(String employeeCode, String phone, String password) {}
     public record PasswordBody(String currentPassword, String newPassword) {}
-    public record PunchBody(Double lat, Double lng, Double accuracy, String nonce, String signature, double[] descriptor, String bssid) {}
+    public record PunchBody(Double lat, Double lng, Double accuracy, String nonce, String signature, double[] descriptor, String bssid, Boolean confirm, String note, String photo) {}
     public record LeaveBody(Long leaveTypeId, LocalDate startDate, LocalDate endDate, Boolean halfDay, String reason) {}
     public record FaceBody(java.util.List<double[]> descriptors) {}
     public record BindBody(String publicKey, String label, String bssid) {}
@@ -171,12 +171,13 @@ public class MeController {
     @PostMapping("/me/punch/{action}")
     public M.Session punch(@AuthenticationPrincipal Actor a, @PathVariable String action, @RequestBody(required = false) PunchBody b,
                            jakarta.servlet.http.HttpServletRequest req) {
-        PunchBody body = b == null ? new PunchBody(null, null, null, null, null, null, null) : b;
+        PunchBody body = b == null ? new PunchBody(null, null, null, null, null, null, null, null, null, null) : b;
+        var decision = new com.arudra.attendance.service.TimeService.Decision(Boolean.TRUE.equals(body.confirm()), body.note(), body.photo());
         PunchInput in = new PunchInput(body.lat(), body.lng(), body.accuracy(), body.nonce(), body.signature(), a.deviceId(),
                 body.descriptor(), body.bssid(), clientIp.of(req));
         return switch (action) {
-            case "in" -> time.clockIn(a.employeeId(), in);
-            case "out" -> time.clockOut(a.employeeId(), in);
+            case "in" -> time.clockIn(a.employeeId(), in, decision);
+            case "out" -> time.clockOut(a.employeeId(), in, decision);
             case "break-start" -> time.startBreak(a.employeeId());
             case "break-end" -> time.endBreak(a.employeeId());
             default -> throw ApiException.bad("Unknown action");
@@ -199,6 +200,16 @@ public class MeController {
     @GetMapping("/me/corrections")
     public List<M.Correction> myCorrections(@AuthenticationPrincipal Actor a) {
         return corrections.mine(a.employeeId());
+    }
+
+    /** This month's hours against the hours the salary covers, when this person is paid by hours; otherwise {"method": null}. */
+    @GetMapping("/me/pay-progress")
+    public java.util.Map<String, Object> payProgress(@AuthenticationPrincipal Actor a) {
+        String period = java.time.YearMonth.from(time.now()).toString();
+        var line = payroll.preview(period, null, a.employeeId()).stream().findFirst().orElse(null);
+        if (line == null || !"HOURS".equals(line.shortfallMethod())) return java.util.Map.of("method", "");
+        return java.util.Map.of("method", "HOURS", "period", period, "requiredHours", line.requiredHours(),
+                "countedHours", line.regularHours().add(line.creditHours()));
     }
 
     @GetMapping("/me/payslips")

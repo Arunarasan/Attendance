@@ -1,6 +1,7 @@
+import PunchCheckSheet, { type Issue } from '../components/PunchCheckSheet'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { loadFace, scanForFace, startCamera, stopCamera } from '../lib/face'
+import { loadFace, scanForFace, startCamera, stopCamera, snapFrame } from '../lib/face'
 import { wifiBssid } from '../lib/deviceKey'
 
 type Result = { outcome: string; employeeName: string | null; flagged: boolean; message: string }
@@ -85,6 +86,8 @@ export default function FacePunch() {
   const fails = useRef(0)
   const [askHr, setAskHr] = useState(false) // after 3 unrecognised scans: photo + request for HR approval
   const [attempt, setAttempt] = useState(0)
+  // A check failed: nothing is recorded until the person fixes it or sends it to HR.
+  const [sheet, setSheet] = useState<null | { descriptor: number[]; photo: string | null; issues: Issue[]; blocked: boolean; err: string; busy: boolean }>(null)
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
 
@@ -128,6 +131,11 @@ export default function FacePunch() {
             const data = await res.json().catch(() => ({}))
             if (!res.ok) throw new Error(data.message ?? 'Request failed')
             setErr('')
+            if (data.outcome === 'NEEDS_CONFIRMATION' || data.outcome === 'PUNCH_BLOCKED') {
+              setSheet({ descriptor, photo: snapFrame(video.current), issues: data.issues ?? [], blocked: data.outcome === 'PUNCH_BLOCKED', err: '', busy: false })
+              setHint('')
+              return   // scanning stays paused (busy) until the person chooses
+            }
             const missed = data.outcome === 'NOT_RECOGNISED' || data.outcome === 'AMBIGUOUS'
             fails.current = missed ? fails.current + 1 : 0
             setAttempt(fails.current)
@@ -150,8 +158,30 @@ export default function FacePunch() {
   }, [])
 
   const ok = result && ['CHECKED_IN', 'CHECKED_OUT'].includes(result.outcome)
+
+  async function sendToHr(note: string) {
+    if (!sheet) return
+    setSheet({ ...sheet, busy: true, err: '' })
+    try {
+      const p = pos.current
+      const res = await fetch('/api/public/face-punch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descriptor: sheet.descriptor, lat: p?.lat, lng: p?.lng, accuracy: p?.accuracy, bssid: wifiBssid(), confirm: true, note, photo: sheet.photo }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Request failed')
+      setSheet(null)
+      setResult(data)
+      window.clearTimeout(clearTimer.current)
+      clearTimer.current = window.setTimeout(() => { setResult(null); busy.current = false }, 4500)
+    } catch (e: any) {
+      setSheet(sh => sh && { ...sh, busy: false, err: e.message })
+    }
+  }
+  const closeSheet = () => { setSheet(null); setHint('Look at the camera'); busy.current = false }
   return (
     <div className={`kiosk${fill ? ' fill-light' : ''}`}>
+      {sheet && <PunchCheckSheet issues={sheet.issues} blocked={sheet.blocked} busy={sheet.busy} error={sheet.err} onRetry={closeSheet} onSend={sendToHr} onCancel={closeSheet} />}
       <div className="clock" style={{ fontSize: 56 }}>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
       <div style={{ width: 'min(420px, 100%)' }}>
         <video ref={video} autoPlay muted playsInline style={{ width: '100%', borderRadius: 16, transform: 'scaleX(-1)', background: '#000', display: result ? 'none' : 'block' }} />
@@ -161,7 +191,7 @@ export default function FacePunch() {
       ) : result ? (
         <div className="result" style={{ color: ok ? 'var(--ok)' : 'var(--bad)' }}>
           {result.message}
-          {ok && result.flagged && <div className="muted" style={{ fontSize: 16 }}>Recorded. HR will confirm it.</div>}
+          {ok && result.flagged && <div className="muted" style={{ fontSize: 16 }}>Sent to HR for approval.</div>}
           {(result.outcome === 'NOT_RECOGNISED' || result.outcome === 'AMBIGUOUS') && <div className="muted" style={{ fontSize: 16 }}>Try {attempt} of 3. Face the light and look straight at the camera.</div>}
         </div>
       ) : (

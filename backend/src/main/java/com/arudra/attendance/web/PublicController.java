@@ -18,7 +18,7 @@ public class PublicController {
     public record Face(double[] descriptor) {}
     public record Manual(String identifier, double[] descriptor) {}
     public record FaceRequestBody(String employeeCode, String phone, String action, String photo, Double lat, Double lng, Double accuracy, String bssid) {}
-    public record FacePunch(double[] descriptor, Double lat, Double lng, Double accuracy, String bssid) {}
+    public record FacePunch(double[] descriptor, Double lat, Double lng, Double accuracy, String bssid, Boolean confirm, String note, String photo) {}
 
     private final AppPairingService pairing;
     private final KioskService kiosks;
@@ -26,15 +26,24 @@ public class PublicController {
     private final FacePunchThrottle faceThrottle;
     private final FaceRequestService faceRequests;
     private final LoginThrottle loginThrottle;
+    private final com.arudra.attendance.service.GeneralSettingsService general;
 
     public PublicController(AppPairingService pairing, KioskService kiosks, ClientIp clientIp, FacePunchThrottle faceThrottle,
-                            FaceRequestService faceRequests, LoginThrottle loginThrottle) {
+                            FaceRequestService faceRequests, LoginThrottle loginThrottle, com.arudra.attendance.service.GeneralSettingsService general) {
+        this.general = general;
         this.faceRequests = faceRequests;
         this.loginThrottle = loginThrottle;
         this.faceThrottle = faceThrottle;
         this.pairing = pairing;
         this.kiosks = kiosks;
         this.clientIp = clientIp;
+    }
+
+    /** What the sign-in screen and the employee app need before anyone signs in. */
+    @GetMapping("/config")
+    public Map<String, String> config() {
+        var g = general.get();
+        return Map.of("companyName", g.companyName(), "defaultLanguage", g.defaultLanguage());
     }
 
     @PostMapping("/app/pair")
@@ -57,7 +66,7 @@ public class PublicController {
         String ip = clientIp.of(req);
         faceThrottle.check(ip);
         var in = new VerificationService.PunchInput(b.lat(), b.lng(), b.accuracy(), null, null, null, null, b.bssid(), ip);
-        var r = kiosks.punchFaceOpen(b.descriptor(), in);
+        var r = kiosks.punchFaceOpen(b.descriptor(), in, new com.arudra.attendance.service.TimeService.Decision(Boolean.TRUE.equals(b.confirm()), b.note(), b.photo()));
         if ("NOT_RECOGNISED".equals(r.outcome())) faceThrottle.fail(ip);
         return r;
     }

@@ -124,6 +124,11 @@ public class HrController {
     @PostMapping("/attendance/sessions/{id}/approve")
     public Map<String, String> approve(@AuthenticationPrincipal Actor a, @PathVariable long id) { time.approve(id, a.employeeId()); return Map.of("status", "APPROVED"); }
 
+    @GetMapping(value = "/attendance/sessions/{id}/photo", produces = org.springframework.http.MediaType.IMAGE_JPEG_VALUE)
+    public byte[] punchPhoto(@PathVariable long id, @RequestParam(defaultValue = "IN") String kind) {
+        return time.punchPhoto(id, "OUT".equalsIgnoreCase(kind) ? "OUT" : "IN");
+    }
+
     @PostMapping("/attendance/sessions/{id}/reject")
     public Map<String, String> reject(@AuthenticationPrincipal Actor a, @PathVariable long id) { time.reject(id, a.employeeId()); return Map.of("status", "REJECTED"); }
 

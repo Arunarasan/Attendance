@@ -55,7 +55,9 @@ export function Approvals() {
                 <div className="lh-req-d"><ICal size={16} />{new Date(s.workDate + 'T00:00').toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}</div>
                 <div className="lh-req-d"><IClock size={16} />{fmtTime(s.clockIn)} <IArrowR size={14} /> {s.clockOut ? fmtTime(s.clockOut) : 'open'}
                   <span className="lh-chip">{s.source}</span></div>
-                <div className="ap-flag"><IAlert size={16} /><span>{s.flagReason}</span>{s.distanceMeters != null && <em><IPin size={13} />{Math.round(s.distanceMeters)} m from office</em>}</div>
+                <div className="ap-flag"><IAlert size={16} /><span>{(s.flagReason ?? '').split('; ').filter(Boolean).map((r: string) => <i key={r} className="ap-chip">{r}</i>)}</span>{s.distanceMeters != null && <em><IPin size={13} />{Math.round(s.distanceMeters)} m from office</em>}</div>
+                {s.employeeNote && <div className="ap-reason"><b>Employee's reason:</b> {s.employeeNote}</div>}
+                {(s.hasPhotoIn || s.hasPhotoOut) && <div className="ap-frames">{s.hasPhotoIn && <PunchPhoto id={s.id} kind="IN" label="Check-in photo" />}{s.hasPhotoOut && <PunchPhoto id={s.id} kind="OUT" label="Check-out photo" />}</div>}
               </div>
               <div className="lh-req-a">
                 <button className="lh-ok" onClick={() => act(s.id, 'approve')}><ICheckCircle size={18} />Approve</button>
@@ -67,6 +69,22 @@ export function Approvals() {
     </section>
 
     {sel.length > 0 && <div className="ap-bar"><span><b>{sel.length}</b> selected</span><button className="lh-ok" onClick={many}><ICheckCircle size={18} />Approve {sel.length}</button><button className="ap-clear" onClick={() => setSel([])}>Clear</button></div>}
+  </>)
+}
+
+/** The camera frame that came with a punch the employee sent for approval: check it is really them before approving. */
+function PunchPhoto({ id, kind, label }: { id: number; kind: 'IN' | 'OUT'; label: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [big, setBig] = useState(false)
+  useEffect(() => {
+    let u: string | null = null
+    blobUrl(`/api/hr/attendance/sessions/${id}/photo?kind=${kind}`).then(x => { u = x; setUrl(x) }).catch(() => setUrl(null))
+    return () => { if (u) URL.revokeObjectURL(u) }
+  }, [id, kind])
+  if (!url) return null
+  return (<>
+    <figure className="ap-frame"><button type="button" onClick={() => setBig(true)} aria-label={`Enlarge ${label}`}><img src={url} alt={label} /></button><figcaption>{label}</figcaption></figure>
+    {big && <div className="ap-zoom" onClick={() => setBig(false)} role="dialog" aria-label={label}><img src={url} alt={label} /></div>}
   </>)
 }
 

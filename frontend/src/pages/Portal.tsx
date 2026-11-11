@@ -1,8 +1,9 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react'
-import { fmtDateTime, fmtHours, fmtTime, get, post, today } from '../lib/api'
+import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { ApiError, fmtDateTime, fmtHours, fmtTime, get, post, today } from '../lib/api'
 import { getBestPosition } from '../lib/geo'
 import { hasLocalKey, publicKeyB64, signNonce, wifiBssid } from '../lib/deviceKey'
 import FaceCapture from '../components/FaceCapture'
+import PunchCheckSheet, { type Issue } from '../components/PunchCheckSheet'
 import FaceEnrol from './FaceEnrol'
 import type { Me } from '../App'
 import { IArrowR, IBack, IBell, ICal, ICalCheck, ICalPlus, ICheckCircle, IChevR, IClock, IDoc, IFace, IAlert, IBriefcase, IFinger, IGear, IHeart, IHome, ILock, ISend, ISun, IUmbrella, IX, IPhone, IUser, Leaves } from '../components/icons'
@@ -13,6 +14,16 @@ import WeeklyOffSection from './WeeklyOffPage'
 type Session = { id: number; clockIn: string; clockOut: string | null; breakStarted: string | null; breakMinutes: number; approvalStatus: string; flagged: boolean; flagReason: string | null }
 type TodayData = { isOpen: boolean; onBreak: boolean; sessions: Session[]; days: { workedMinutes: number; overtimeMinutes: number }[] }
 
+/** Time worked in an open session: since clock-in, minus breaks. Frozen while on a break. */
+function elapsed(sess: Session, now: Date) {
+  const start = new Date(sess.clockIn).getTime()
+  const end = sess.breakStarted ? new Date(sess.breakStarted).getTime() : now.getTime()
+  const ms = Math.max(0, end - start - (sess.breakMinutes ?? 0) * 60000)
+  const sec = Math.floor(ms / 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(Math.floor(sec / 3600))}:${pad(Math.floor((sec % 3600) / 60))}:${pad(sec % 60)}`
+}
+
 function ClockWidget({ onChange }: { onChange: () => void }) {
   const { t } = useT()
   const [data, setData] = useState<TodayData | null>(null)
@@ -20,51 +31,73 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [note, setNote] = useState('')
+  // A punch that failed a check: nothing is recorded until the person fixes it or sends it to HR.
+  const [sheet, setSheet] = useState<null | { action: 'in' | 'out'; issues: Issue[]; blocked: boolean; err: string }>(null)
+  const captured = useRef<Record<string, unknown> | null>(null)
   // Set while the camera step is open; resolves with the descriptor, or null when skipped.
-  const [askFace, setAskFace] = useState<null | ((d: number[] | null) => void)>(null)
-  const captureFace = () => new Promise<number[] | null>(res => setAskFace(() => (d: number[] | null) => { setAskFace(null); res(d) }))
+  const [askFace, setAskFace] = useState<null | ((d: number[] | null, photo?: string | null) => void)>(null)
+  const frame = useRef<string | null>(null)   // the camera frame from the face step, sent only if the person sends the punch to HR
+  const captureFace = () => new Promise<number[] | null>(res => setAskFace(() => (d: number[] | null, photo?: string | null) => { frame.current = photo ?? null; setAskFace(null); res(d) }))
 
   const load = useCallback(() => get<TodayData>('/api/me/today').then(setData).catch(e => setErr(e.message)), [])
   useEffect(() => { load() }, [load])
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
 
-  async function punch(action: 'in' | 'out' | 'break-start' | 'break-end') {
+  async function punch(action: 'in' | 'out' | 'break-start' | 'break-end', sendNote?: string) {
     setBusy(true); setErr(''); setNote('')
     try {
       let body: Record<string, unknown> = {}
       if (action === 'in' || action === 'out') {
-        const face = await captureFace()
-        setNote('Getting your location…')
-        const pos = await getBestPosition()
-        if (pos) body = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy }
-        if (face) body = { ...body, descriptor: face }
-        const bssid = wifiBssid()
-        if (bssid) body = { ...body, bssid }
+        if (sendNote !== undefined && captured.current) {
+          body = { ...captured.current }          // the same face and location the person already gave
+        } else {
+          const face = await captureFace()
+          setNote('Getting your location…')
+          const pos = await getBestPosition()
+          if (pos) body = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy }
+          if (face) body = { ...body, descriptor: face }
+          const bssid = wifiBssid()
+          if (bssid) body = { ...body, bssid }
+          captured.current = body
+        }
         if (await hasLocalKey()) {
-          const { nonce } = await get<{ nonce: string }>('/api/nonce')
+          const { nonce } = await get<{ nonce: string }>('/api/nonce')   // a fresh single-use proof each time
           body = { ...body, nonce, signature: await signNonce(nonce) }
         }
+        if (sendNote !== undefined) body = { ...body, confirm: true, note: sendNote, ...(frame.current ? { photo: frame.current } : {}) }
       }
       const s = await post<Session>(`/api/me/punch/${action}`, body)
-      setNote(s.flagged ? `Recorded, but flagged for HR: ${s.flagReason}` : 'Recorded')
+      setSheet(null)
+      setNote(sendNote !== undefined ? t('pc_sent') : s.flagged ? `Recorded, but flagged for HR: ${s.flagReason}` : 'Recorded')
       await load()
       onChange()
     } catch (e: any) {
-      setErr(e.message); setNote('')
+      if ((action === 'in' || action === 'out') && e instanceof ApiError && (e.code === 'NEEDS_CONFIRMATION' || e.code === 'PUNCH_BLOCKED')) {
+        setSheet({ action, issues: e.data?.issues ?? [], blocked: e.code === 'PUNCH_BLOCKED', err: '' }); setNote('')
+      } else if (sendNote !== undefined && sheet) {
+        setSheet({ ...sheet, err: e.message })
+      } else {
+        setErr(e.message); setNote('')
+      }
     } finally {
       setBusy(false)
     }
   }
 
   const day = data?.days[0]
-  if (askFace) return <FaceCapture title="Confirm it's you" onDone={d => askFace(d)} onCancel={() => askFace(null)} />
+  if (askFace) return <FaceCapture title="Confirm it's you" onDone={(d, p) => askFace(d, p)} onCancel={() => askFace(null)} />
   const open = !!data?.isOpen
   const last = data?.sessions[data.sessions.length - 1]
   return (<>
+    {sheet && <PunchCheckSheet issues={sheet.issues} blocked={sheet.blocked} busy={busy} error={sheet.err}
+      onRetry={() => { const a = sheet.action; captured.current = null; setSheet(null); punch(a) }}
+      onSend={n => punch(sheet.action, n)}
+      onCancel={() => { captured.current = null; setSheet(null) }} />}
     <section className="pm-card pm-today">
       <div className="pm-today-l">
         <h3>{t('todaysAttendance')}</h3>
-        <div className="pm-time">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        <div className="pm-time" aria-live="off">{open && last ? elapsed(last, now) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        {open && last && <div className="pm-sub">{data?.onBreak ? 'On break · timer paused' : 'Working time'}</div>}
         {last && <div className="pm-sub">{fmtTime(last.clockIn)}{last.clockOut ? ` → ${fmtTime(last.clockOut)}` : ''}</div>}
         <span className={`pm-status ${open ? 'in' : ''}`}><ICheckCircle size={16} />{!data ? '…' : open ? (data.onBreak ? t('onBreak') : t('checkedIn')) : data.sessions.length ? t('checkedOut') : t('notCheckedIn')}</span>
       </div>
@@ -128,6 +161,23 @@ function ScoreCard({ version }: { version: number }) {
       <div className="sc-m"><h3>{t('honourScore')}</h3><small>{has ? `${levelName[s.level] ?? ''} · out of 100` : t('noScoreYet')}</small></div>
       {has && <span className={`sc-lv ${lv}`}>{levelName[s.level]}</span>}
       {open && <div className="sc-break">{rows.map(([l, v, d]) => <div key={l}><span>{l}<small>{d}</small></span><div className="sc-meter"><i style={{ width: `${v}%` }} /></div><b>{v}%</b></div>)}</div>}
+    </section>
+  )
+}
+
+/** Shown to people paid a monthly salary by hours: this month's hours against the hours the salary covers. */
+function HoursProgress({ version }: { version: number }) {
+  const [d, setD] = useState<any>(null)
+  useEffect(() => { get('/api/me/pay-progress').then(setD).catch(() => setD(null)) }, [version])
+  if (!d || d.method !== 'HOURS') return null
+  const need = Number(d.requiredHours), got = Number(d.countedHours)
+  const pct = need > 0 ? Math.min(100, (got / need) * 100) : 0
+  const diff = got - need
+  return (
+    <section className="pm-card hp-card">
+      <div className="hp-h"><b>Hours this month</b><span>{got.toFixed(1)} of {need.toFixed(0)} h</span></div>
+      <div className="sc-meter"><i style={{ width: `${pct}%` }} /></div>
+      <small className="pm-muted">{diff >= 0 ? `${diff.toFixed(1)} h extra so far: paid as extra pay.` : `${(-diff).toFixed(1)} h still to reach your monthly salary hours.`}</small>
     </section>
   )
 }
@@ -382,11 +432,14 @@ function PayslipCard({ p, open, onToggle }: { p: any; open: boolean; onToggle: (
   const m = (v: any) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const n = (v: any) => Number(v ?? 0)
   const earn = n(p.gross)
-  const cut = n(p.deductions) + n(p.lopAmount)
+  const hoursM = p.shortfallMethod === 'HOURS'
+  const lost = n(p.lopAmount) + n(p.shortfallAmount)
+  const cut = n(p.deductions) + lost
   const month = new Date(p.period + '-01T00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })
   const lines: [string, string, boolean][] = [
+    ...(hoursM ? [[`Hours the salary covers`, `${p.requiredHours} h`, false] as [string, string, boolean]] : []),
     [`Hours worked`, `${p.regularHours} h`, false],
-    ...(n(p.overtimeHours) > 0 ? [[`Overtime`, `${p.overtimeHours} h`, false] as [string, string, boolean]] : []),
+    ...(!hoursM && n(p.overtimeHours) > 0 ? [[`Overtime`, `${p.overtimeHours} h`, false] as [string, string, boolean]] : []),
     ...(n(p.paidLeaveDays) + n(p.holidayDays) > 0 ? [[`Paid leave + holidays`, `${n(p.paidLeaveDays) + n(p.holidayDays)} days`, false] as [string, string, boolean]] : []),
     ...(n(p.unpaidLeaveDays) > 0 ? [[`Unpaid leave`, `${n(p.unpaidLeaveDays)} days`, true] as [string, string, boolean]] : []),
   ]
@@ -400,21 +453,23 @@ function PayslipCard({ p, open, onToggle }: { p: any; open: boolean; onToggle: (
       </button>
       {open && <div className="ps2-body">
         <div className="ps2-bar" title="Where the money goes">
-          <i style={{ width: `${earn > 0 ? Math.max(0, (n(p.net) / (earn + n(p.lopAmount))) * 100) : 0}%`, background: '#287A3E' }} />
-          <i style={{ width: `${earn > 0 ? (cut / (earn + n(p.lopAmount))) * 100 : 0}%`, background: '#f4a3a3' }} />
+          <i style={{ width: `${earn > 0 ? Math.max(0, (n(p.net) / (earn + lost)) * 100) : 0}%`, background: '#287A3E' }} />
+          <i style={{ width: `${earn > 0 ? (cut / (earn + lost)) * 100 : 0}%`, background: '#f4a3a3' }} />
         </div>
         <div className="ps2-legend"><span><i style={{ background: '#287A3E' }} />You receive {m(p.net)}</span>{cut > 0 && <span><i style={{ background: '#f4a3a3' }} />Taken off {m(cut)}</span>}</div>
 
         <h4>Earnings</h4>
         <div className="ps-rows">
-          <div><span>Pay for the month</span><b>{m(earn - n(p.allowances) - n(p.bonus))}</b></div>
+          <div><span>Pay for the month</span><b>{m(earn - n(p.allowances) - n(p.bonus) - n(p.extraAmount))}</b></div>
+          {n(p.extraAmount) > 0 && <div><span>Extra hours ({n(p.extraHours)} h)</span><b>+{m(p.extraAmount)}</b></div>}
           {n(p.allowances) > 0 && <div><span>{t('allowances')}</span><b>+{m(p.allowances)}</b></div>}
           {n(p.bonus) > 0 && <div><span>{t('bonus')}</span><b>+{m(p.bonus)}</b></div>}
           <div className="tot"><span>Gross pay</span><b>{m(earn)}</b></div>
         </div>
-        {(n(p.lopDays) > 0 || n(p.deductions) > 0 || n(p.adjustments) !== 0) && <>
+        {(n(p.lopDays) > 0 || n(p.shortfallAmount) > 0 || n(p.deductions) > 0 || n(p.adjustments) !== 0) && <>
           <h4>Taken off</h4>
           <div className="ps-rows">
+            {n(p.shortfallAmount) > 0 && <div className="bad"><span>Missing hours ({n(p.shortfallHours)} h)</span><b>−{m(p.shortfallAmount)}</b></div>}
             {n(p.lopDays) > 0 && <div className="bad"><span>{t('lossOfPay')} ({n(p.lopDays)} {n(p.lopDays) === 1 ? 'day' : 'days'})</span><b>−{m(p.lopAmount)}</b></div>}
             {n(p.deductions) > 0 && <div className="bad"><span>Deductions</span><b>−{m(p.deductions)}</b></div>}
             {n(p.adjustments) !== 0 && <div><span>Adjustments</span><b>{n(p.adjustments) > 0 ? '+' : ''}{m(p.adjustments)}</b></div>}
@@ -589,7 +644,7 @@ function AppSettings() {
     {msg && <div className="msg">{msg}</div>}
     <div className="pm-h"><h3>{t('aboutApp')}</h3></div>
     <section className="pm-card">
-      <div className="pm-li"><span className="pm-li-t">{t('appName')}</span><span className="pm-li-r">AttendancePro</span></div>
+      <div className="pm-li"><span className="pm-li-t">{t('appName')}</span><span className="pm-li-r">Arudra Attender</span></div>
       <div className="pm-li"><span className="pm-li-t">{t('company')}</span><span className="pm-li-r">Arudra Commercial Services</span></div>
       <div className="pm-li"><span className="pm-li-t">{t('developedBy')}</span><span className="pm-li-r">Arun</span></div>
       <div className="pm-li"><span className="pm-li-t">{t('contact')}</span><span className="pm-li-r"><a href="tel:9629129864">9629129864</a></span></div>
@@ -644,6 +699,7 @@ export default function Portal({ me, onLogout }: { me: Me; onLogout: () => void 
             <button onClick={() => { setTab('me'); setSub('fix') }}><IClock size={30} />{t('timeCorrection')}</button>
           </div>
           <ScoreCard version={version} />
+          <HoursProgress version={version} />
           <MonthStats version={version} onAll={() => pick('att')} />
         </>}
         {tab === 'att' && !sub && <Timesheet version={version} />}

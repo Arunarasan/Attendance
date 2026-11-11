@@ -11,6 +11,7 @@ spring:
     locations: classpath:db/migration
 
 app:
+  version: '@project.version@'
   jwt-secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
   jwt-hours: 720
   seed-admin-email: ${APP_ADMIN_EMAIL:admin@example.com}
@@ -21,6 +22,8 @@ app:
   # Standard hours, weekly off days, overtime rate and default pay mode are edited by HR (HR console, Pay settings).
   attendance:
     geo-grace-meters: 20
+    # When a punch fails a check: ASK (employee fixes it or sends it to HR), BLOCK, or FLAG (record and flag for HR).
+    on-check-fail: ASK
     max-accuracy-margin-meters: 250
     kiosk-min-gap-seconds: 120
     face-confident: 0.42

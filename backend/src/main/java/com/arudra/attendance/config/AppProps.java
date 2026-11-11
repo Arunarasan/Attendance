@@ -7,5 +7,5 @@ public record AppProps(String jwtSecret, int jwtHours, String seedAdminEmail, St
                        String corsOrigins, boolean trustProxy, Attendance attendance) {
     public record Attendance(int geoGraceMeters, int maxAccuracyMarginMeters, int kioskMinGapSeconds,
                              double faceConfident, double faceWeak, double faceMargin,
-                             boolean phoneFaceRequired, double faceLearn) {}
+                             boolean phoneFaceRequired, double faceLearn, String onCheckFail) {}
 }

@@ -187,3 +187,13 @@ export async function scanForFace(o: ScanOptions): Promise<void> {
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+/** A small JPEG of the current camera frame (for HR to check who it is), or null if the camera is not ready. */
+export function snapFrame(v: HTMLVideoElement | null, width = 480): string | null {
+  if (!v || !v.videoWidth) return null
+  const h = Math.round((width * v.videoHeight) / v.videoWidth)
+  const c = document.createElement('canvas')
+  c.width = width; c.height = h
+  c.getContext('2d')!.drawImage(v, 0, 0, width, h)
+  return c.toDataURL('image/jpeg', 0.7)
+}

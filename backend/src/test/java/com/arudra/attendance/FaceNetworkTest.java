@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Face and office-network rules for phones. Test requests come from 127.0.0.1 / ::1. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "app.attendance.on-check-fail=FLAG",
         "app.attendance.phone-face-required=true",
         "spring.datasource.url=jdbc:h2:mem:facenet;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1"})
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

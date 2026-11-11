@@ -23,7 +23,7 @@ class PayRulesTest {
     private static final int STD = 480;
 
     private static Policy policy() {
-        return new Policy("SCHEDULED", 0, 0, true, 10, 240, LocalTime.of(9, 0), 10, 3, 40, 25, 20, 15, 0, BigDecimal.ZERO);
+        return new Policy("SCHEDULED", 0, 0, true, 10, 240, LocalTime.of(9, 0), 10, 3, 40, 25, 20, 15, 0, BigDecimal.ZERO, "DAYS", 1);
     }
 
     // 2026-11-02 is a Monday; the week Mon-Sat is worked, Sunday is off.

@@ -7,8 +7,9 @@ import { Holidays, LeaveAdmin } from './LeaveHolidays'
 import { Corrections, Register } from './AttendanceAdmin'
 import { Approvals, PhotoRequests, WeekOffRequests } from './ApprovalsAdmin'
 import { Locations, Networks } from './LocationsAdmin'
-import { LopReview, PaySettings, Payroll, Scores } from './PayAdmin'
+import { AppInfo, GeneralSettings, LanguageSettings, LopReview, PaySettings, Payroll, Scores } from './PayAdmin'
 import { ICal, ICalCheck, ICheckSq, IBell, IDevice, IGear, IHome, IMenu, IPin, IUsers, IWallet, Leaves } from '../components/icons'
+import { useT } from '../lib/i18n'
 import './hr.css'
 
 function useLoad<T>(path: string, deps: unknown[] = []) {
@@ -48,24 +49,26 @@ function Kiosks() {
 
 const TABS: Record<string, () => JSX.Element> = {
   approve: Approvals, photo: PhotoRequests, weekoff: WeekOffRequests, register: Register, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
-  kiosks: Kiosks, leave: LeaveAdmin, holidays: Holidays, pay: Payroll, lop: LopReview, score: Scores, paycfg: PaySettings,
+  kiosks: Kiosks, leave: LeaveAdmin, holidays: Holidays, pay: Payroll, lop: LopReview, score: Scores, paycfg: PaySettings, gen: GeneralSettings, info: AppInfo, lang: LanguageSettings,
 }
 
 type Group = { key: string; label: string; icon: ReactNode; tabs: [string, string][] }
+/** Labels are translation keys, looked up when drawn. */
 const GROUPS: Group[] = [
-  { key: 'dash', label: 'Dashboard', icon: <IHome />, tabs: [] },
-  { key: 'emps', label: 'Employees', icon: <IUsers />, tabs: [] },
-  { key: 'att', label: 'Attendance', icon: <ICalCheck />, tabs: [['register', 'Register'], ['fix', 'Corrections']] },
-  { key: 'leave', label: 'Leave & Holidays', icon: <ICal />, tabs: [['leave', 'Leave'], ['holidays', 'Holidays']] },
-  { key: 'appr', label: 'Approvals', icon: <ICheckSq />, tabs: [['approve', 'To approve'], ['photo', 'Photo requests'], ['weekoff', 'Weekly off']] },
-  { key: 'loc', label: 'Locations', icon: <IPin />, tabs: [['loc', 'Locations'], ['net', 'WiFi']] },
-  { key: 'dev', label: 'Devices / Kiosks', icon: <IDevice />, tabs: [['phones', 'Phones'], ['kiosks', 'Kiosks']] },
-  { key: 'pay', label: 'Payroll', icon: <IWallet />, tabs: [['pay', 'Payroll'], ['lop', 'Loss of pay review'], ['score', 'Honour scores']] },
-  { key: 'set', label: 'Settings', icon: <IGear />, tabs: [['paycfg', 'Pay settings']] },
+  { key: 'dash', label: 'h_dashboard', icon: <IHome />, tabs: [] },
+  { key: 'emps', label: 'h_employees', icon: <IUsers />, tabs: [] },
+  { key: 'att', label: 'h_attendance', icon: <ICalCheck />, tabs: [['register', 'h_tabRegister'], ['fix', 'h_tabCorrections']] },
+  { key: 'leave', label: 'h_leaveHol', icon: <ICal />, tabs: [['leave', 'h_tabLeave'], ['holidays', 'h_tabHolidays']] },
+  { key: 'appr', label: 'h_approvals', icon: <ICheckSq />, tabs: [['approve', 'h_tabToApprove'], ['photo', 'h_tabPhoto'], ['weekoff', 'h_tabWeekly']] },
+  { key: 'loc', label: 'h_locations', icon: <IPin />, tabs: [['loc', 'h_tabLocations'], ['net', 'h_tabWifi']] },
+  { key: 'dev', label: 'h_devices', icon: <IDevice />, tabs: [['phones', 'h_tabPhones'], ['kiosks', 'h_tabKiosks']] },
+  { key: 'pay', label: 'h_payroll', icon: <IWallet />, tabs: [['pay', 'h_tabPayroll'], ['lop', 'h_tabLop'], ['score', 'h_tabScores'], ['paycfg', 'h_tabPaySettings']] },
+  { key: 'set', label: 'h_settings', icon: <IGear />, tabs: [['gen', 'h_tabGeneral'], ['lang', 'h_tabLanguage'], ['info', 'h_tabAppInfo']] },
 ]
 const groupOf = (tab: string) => GROUPS.find(g => g.key === tab || g.tabs.some(t => t[0] === tab)) ?? GROUPS[0]
 
 export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
+  const { t } = useT()
   const [tab, setTab] = useState('dash')
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(0)
@@ -74,19 +77,19 @@ export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const group = groupOf(tab)
   const Cur = TABS[tab]
   const hour = new Date().getHours()
-  const hello = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
+  const hello = hour < 12 ? t('morning') : hour < 17 ? t('afternoon') : t('evening')
   const first = me.name.split(' ')[0]
   const initials = me.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const title = tab === 'dash' ? <>{hello}, {first} <span aria-hidden="true">👋</span></> : group.label
-  const sub = tab === 'dash' ? "Here's your organization overview for today." : 'Manage ' + group.label.toLowerCase() + ' for your organization.'
+  const title = tab === 'dash' ? <>{hello}, {first} <span aria-hidden="true">👋</span></> : t(group.label)
+  const sub = tab === 'dash' ? t('h_overview') : t('h_manage')
   return (
     <div className={`hx${open ? ' open' : ''}`}>
       <aside className="hx-side">
-        <div className="hx-brand"><span className="logo"><ICalCheck /></span><h1>Attendance<span>Pro</span></h1></div>
+        <div className="hx-brand"><span className="hx-logo"><img src="/logo.webp" alt="Arudra Attender" /></span><small>{me.role === 'ADMIN' ? t('h_adminPortal') : t('h_hrPortal')}</small></div>
         <nav className="hx-nav">
           {GROUPS.map(g => (
             <button key={g.key} className={group.key === g.key ? 'on' : ''} onClick={() => go(g.tabs[0]?.[0] ?? g.key)}>
-              {g.icon}{g.label}{g.key === 'appr' && pending > 0 && <span className="badge">{pending}</span>}
+              {g.icon}{t(g.label)}{g.key === 'appr' && pending > 0 && <span className="badge">{pending}</span>}
             </button>))}
         </nav>
         <Leaves className="hx-leaves" />
@@ -97,10 +100,10 @@ export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <button className="hx-burger" onClick={() => setOpen(true)} aria-label="Open menu"><IMenu /></button>
           <div className="hx-hello"><h2>{title}</h2><p>{sub}</p></div>
           <button className="hx-bell" onClick={() => go('approve')} aria-label={`${pending} pending approvals`}><IBell />{pending > 0 && <i>{pending}</i>}</button>
-          <div className="hx-user"><span className="av">{initials}</span><span><b>{me.name}</b><small>{me.role === 'ADMIN' ? 'Admin' : 'HR'}</small></span><button onClick={onLogout}>Sign out</button></div>
+          <div className="hx-user"><span className="av">{initials}</span><span><b>{me.name}</b><small>{me.role === 'ADMIN' ? t('h_admin') : t('h_hr')}</small></span><button onClick={onLogout}>{t('signOut')}</button></div>
         </header>
         <div className="hx-body">
-          {group.tabs.length > 1 && <div className="tabs">{group.tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>}
+          {group.tabs.length > 1 && <div className="tabs">{group.tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t(l)}</button>)}</div>}
           {tab === 'dash' ? <Dashboard go={go} /> : tab === 'emps' ? <EmployeesTab meId={me.id} /> : Cur ? <Cur /> : null}
         </div>
       </div>

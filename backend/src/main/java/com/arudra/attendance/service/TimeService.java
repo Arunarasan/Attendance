@@ -21,14 +21,16 @@ public class TimeService {
     private static final String SESSION_COLS = """
             id, employee_id, work_date, clock_in, clock_out, break_started, break_minutes, source, verification_method,
             verified, flagged, flag_reason, distance_meters, device_id, device_verified, kiosk_id, face_distance,
-            approval_status, approved_by, approved_at""";
+            approval_status, approved_by, approved_at, employee_note""";
 
     private final JdbcClient db;
     private final VerificationService verification;
     private final Clock clock;
     private final SettingsService settings;
+    private final GeneralSettingsService general;
 
-    public TimeService(JdbcClient db, VerificationService verification, Clock clock, SettingsService settings) {
+    public TimeService(JdbcClient db, VerificationService verification, Clock clock, SettingsService settings, GeneralSettingsService general) {
+        this.general = general;
         this.db = db;
         this.verification = verification;
         this.clock = clock;
@@ -68,20 +70,71 @@ public class TimeService {
 
     // ---------- punches ----------
 
-    @Transactional
-    public M.Session clockIn(long employeeId, PunchInput in) {
-        M.Emp emp = activeEmployee(employeeId);
-        requireNoOpen(employeeId);
-        Eval ev = verification.evaluate(emp, in);
-        return startSession(emp.id(), ev, "PORTAL", null, null, in.deviceId());
+    /** The employee's answer when a punch failed a check: they agree to send it to HR, with a note. */
+    public record Decision(boolean confirm, String note, String photo) {
+        public static final Decision NONE = new Decision(false, null, null);
+        public Decision(boolean confirm, String note) { this(confirm, note, null); }
+    }
+
+    /** Keeps the camera frame that came with a punch sent to HR, so HR can check who it is. Ignored when there is none. */
+    public void savePhoto(long sessionId, String kind, String dataUrl) {
+        if (dataUrl == null || dataUrl.isBlank()) return;
+        byte[] bytes = FaceRequestService.decodePhoto(dataUrl);
+        db.sql("DELETE FROM punch_photos WHERE session_id = ? AND kind = ?").param(sessionId).param(kind).update();
+        db.sql("INSERT INTO punch_photos (session_id, kind, photo) VALUES (?,?,?)").param(sessionId).param(kind).param(bytes).update();
+    }
+
+    public byte[] punchPhoto(long sessionId, String kind) {
+        return db.sql("SELECT photo FROM punch_photos WHERE session_id = ? AND kind = ?").param(sessionId).param(kind).query(byte[].class).optional()
+                .orElseThrow(() -> ApiException.notFound("Photo"));
+    }
+
+    /** Photos of decided punches are deleted 30 days after HR decides. */
+    public int purgePhotos() {
+        return db.sql("DELETE FROM punch_photos WHERE session_id IN (SELECT id FROM attendance_sessions WHERE approval_status <> 'PENDING' AND approved_at < ?)")
+                .param(now().minusDays(30)).update();
+    }
+
+    /**
+     * What happens when a punch fails a check, by the company setting: ASK stops until the employee agrees to send it to HR
+     * (with a note); BLOCK refuses it; FLAG records it and flags it for HR. Nothing is recorded or shown to HR before that.
+     * Returns the note to store (or null).
+     */
+    public String gate(List<VerificationService.Issue> issues, boolean flagged, Decision d) {
+        String note = d == null || d.note() == null || d.note().isBlank() ? null : d.note().trim();
+        if (note != null && note.length() > 300) throw ApiException.bad("The note is too long (at most 300 characters)");
+        if (!flagged) return null;
+        String mode = general.get().onCheckFail();
+        if ("BLOCK".equals(mode)) throw ApiException.checksFailed("PUNCH_BLOCKED", "This punch can't be recorded because a check failed. Fix it and try again, or ask HR.", issues);
+        if ("ASK".equals(mode)) {
+            if (d == null || !d.confirm()) throw ApiException.checksFailed("NEEDS_CONFIRMATION", "A check failed. Fix it and try again, or send it to HR for approval.", issues);
+            if (note == null) throw ApiException.bad("Add a short reason for HR");
+        }
+        return note;
     }
 
     @Transactional
-    public M.Session clockOut(long employeeId, PunchInput in) {
+    public M.Session clockIn(long employeeId, PunchInput in, Decision decision) {
+        M.Emp emp = activeEmployee(employeeId);
+        requireNoOpen(employeeId);
+        Eval ev = verification.evaluate(emp, in);
+        String note = gate(ev.issues(), ev.flagged(), decision);
+        if (decision != null && decision.photo() != null && !decision.photo().isBlank()) FaceRequestService.decodePhoto(decision.photo());
+        M.Session s = startSession(emp.id(), ev, "PORTAL", null, null, in.deviceId(), note);
+        if (ev.flagged() && decision != null && decision.confirm()) savePhoto(s.id(), "IN", decision.photo());
+        return s;
+    }
+
+    @Transactional
+    public M.Session clockOut(long employeeId, PunchInput in, Decision decision) {
         M.Emp emp = activeEmployee(employeeId);
         M.Session open = requireOpen(employeeId);
         Eval ev = verification.evaluate(emp, in);
-        return endSession(open, ev);
+        String note = gate(ev.issues(), ev.flagged(), decision);
+        if (decision != null && decision.photo() != null && !decision.photo().isBlank()) FaceRequestService.decodePhoto(decision.photo());
+        M.Session s = endSession(open, ev, note);
+        if (ev.flagged() && decision != null && decision.confirm()) savePhoto(s.id(), "OUT", decision.photo());
+        return s;
     }
 
     @Transactional
@@ -105,6 +158,11 @@ public class TimeService {
     /** Shared by portal, app and kiosk paths. */
     @Transactional
     public M.Session startSession(long employeeId, Eval ev, String source, Long kioskId, Double faceDistance, Long deviceId) {
+        return startSession(employeeId, ev, source, kioskId, faceDistance, deviceId, null);
+    }
+
+    @Transactional
+    public M.Session startSession(long employeeId, Eval ev, String source, Long kioskId, Double faceDistance, Long deviceId, String note) {
         LocalDateTime t = now();
         if (faceDistance == null) faceDistance = ev.faceDistance();
         String status = ev.flagged() ? "PENDING" : "APPROVED";
@@ -112,12 +170,12 @@ public class TimeService {
         db.sql("""
                 INSERT INTO attendance_sessions (employee_id, work_date, clock_in, source, verification_method, verified, flagged,
                   flag_reason, latitude, longitude, accuracy_meters, distance_meters, office_location_id, device_id, device_verified,
-                  kiosk_id, face_distance, approval_status)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""")
+                  kiosk_id, face_distance, approval_status, employee_note)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""")
                 .param(employeeId).param(t.toLocalDate()).param(t).param(source).param(ev.method()).param(!ev.flagged())
                 .param(ev.flagged()).param(ev.reason()).param(ev.lat()).param(ev.lng()).param(ev.accuracy())
                 .param(ev.distance()).param(ev.locationId()).param(deviceId).param(ev.deviceVerified())
-                .param(kioskId).param(faceDistance).param(status).update(kh, "id");
+                .param(kioskId).param(faceDistance).param(status).param(note).update(kh, "id");
         long id = kh.getKey().longValue();
         recompute(employeeId, t.toLocalDate());
         return session(id);
@@ -125,6 +183,11 @@ public class TimeService {
 
     @Transactional
     public M.Session endSession(M.Session open, Eval ev) {
+        return endSession(open, ev, null);
+    }
+
+    @Transactional
+    public M.Session endSession(M.Session open, Eval ev, String note) {
         LocalDateTime t = now();
         if (open.workDate().isBefore(t.toLocalDate())) {
             throw ApiException.conflict("A previous day's session is still open. Ask HR to set the check-out time.");
@@ -134,10 +197,10 @@ public class TimeService {
         String reason = join(open.flagReason(), ev.reason());
         db.sql("""
                 UPDATE attendance_sessions SET clock_out = ?, break_started = NULL, break_minutes = break_minutes + ?,
-                  flagged = ?, verified = ?, flag_reason = ?, approval_status = ? WHERE id = ?""")
+                  flagged = ?, verified = ?, flag_reason = ?, approval_status = ?, employee_note = ? WHERE id = ?""")
                 .param(t).param(extraBreak).param(flagged).param(!flagged).param(reason)
                 .param(flagged && "APPROVED".equals(open.approvalStatus()) ? "PENDING" : open.approvalStatus())
-                .param(open.id()).update();
+                .param(join(open.employeeNote(), note)).param(open.id()).update();
         recompute(open.employeeId(), open.workDate());
         return session(open.id());
     }
@@ -198,7 +261,9 @@ public class TimeService {
     public List<M.PendingSession> pending() {
         return db.sql("""
                 SELECT s.id, s.employee_id, e.name AS employee_name, e.employee_code, s.work_date, s.clock_in, s.clock_out,
-                       s.source, s.flag_reason, s.distance_meters, s.face_distance
+                       s.source, s.flag_reason, s.distance_meters, s.face_distance, s.employee_note,
+                       EXISTS (SELECT 1 FROM punch_photos p WHERE p.session_id = s.id AND p.kind = 'IN') AS has_photo_in,
+                       EXISTS (SELECT 1 FROM punch_photos p WHERE p.session_id = s.id AND p.kind = 'OUT') AS has_photo_out
                 FROM attendance_sessions s JOIN employees e ON e.id = s.employee_id
                 WHERE s.approval_status = 'PENDING' ORDER BY s.clock_in DESC""").query(M.PendingSession.class).list();
     }

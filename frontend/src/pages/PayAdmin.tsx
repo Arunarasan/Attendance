@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { del, fmtDateTime, get, post, put, today } from '../lib/api'
+import { LANGS, setLang, useT } from '../lib/i18n'
 import { IAlert, ICal, ICheckCircle, IClock, IWallet, IUsers } from '../components/icons'
 import './leaveHolidays.css'
 import './attendanceAdmin.css'
@@ -43,7 +44,7 @@ function Num({ label, value, onChange, unit, min = 0, max, step = 1, hint }: { l
 type Pol = {
   workingDaysBasis: string; otAfterMinutes: number; otDailyCapMinutes: number; lopEnabled: boolean; graceMinutes: number; halfDayMinMinutes: number
   shiftStart: string; lateGraceMinutes: number; lateCountForHalfDay: number; wAttendance: number; wPunctuality: number; wHours: number; wDiscipline: number
-  bonusMinScore: number; bonusAmount: number
+  bonusMinScore: number; bonusAmount: number; shortfallMethod: 'DAYS' | 'HOURS'; freeOffDays: number
 }
 
 export function PaySettings() {
@@ -82,7 +83,7 @@ export function PaySettings() {
   const pol0: any = polL.data ?? {}
   const diff = (sk: string[], pk: string[]) => sk.some(k => JSON.stringify(st[k]) !== JSON.stringify(st0[k])) || pk.some(k => JSON.stringify((pol as any)[k]) !== JSON.stringify(k === 'shiftStart' ? String(pol0[k]).slice(0, 5) : k === 'bonusAmount' ? Number(pol0[k]) : pol0[k]))
   const SECTIONS: { key: typeof sec; label: string; hint: string; icon: React.ReactNode; dirty: boolean }[] = [
-    { key: 'pay', label: 'Pay & overtime', hint: 'Mode, divisor, overtime', icon: <IWallet size={20} />, dirty: diff(['defaultMode', 'overtimeMultiplier'], ['workingDaysBasis', 'otAfterMinutes', 'otDailyCapMinutes']) },
+    { key: 'pay', label: 'Pay & overtime', hint: pol.shortfallMethod === 'HOURS' ? 'Paid by hours' : 'Mode, divisor, overtime', icon: <IWallet size={20} />, dirty: diff(['defaultMode', 'overtimeMultiplier'], ['workingDaysBasis', 'otAfterMinutes', 'otDailyCapMinutes', 'shortfallMethod', 'freeOffDays']) },
     { key: 'time', label: 'Work time', hint: 'Hours and weekly off', icon: <IClock size={20} />, dirty: diff(['standardDailyHours', 'weeklyOffDays'], []) },
     { key: 'lop', label: 'Loss of pay', hint: pol.lopEnabled ? 'Rules on' : 'Rules off', icon: <IAlert size={20} />, dirty: diff([], ['lopEnabled', 'graceMinutes', 'halfDayMinMinutes', 'shiftStart', 'lateGraceMinutes', 'lateCountForHalfDay']) },
     { key: 'score', label: 'Honour score', hint: 'Weights and bonus', icon: <ICheckCircle size={20} />, dirty: diff([], ['wAttendance', 'wPunctuality', 'wHours', 'wDiscipline', 'bonusMinScore', 'bonusAmount']) },
@@ -90,14 +91,6 @@ export function PaySettings() {
   ]
   const offNames = off.length ? DAYS.filter(([k]) => off.includes(k)).map(([, l]) => l).join(', ') : 'none'
   return (<>
-    <div className="ps-summary">
-      <span><IWallet size={16} />{st.defaultMode === 'MONTHLY' ? 'Monthly' : 'Hourly'} by default</span>
-      <span><IClock size={16} />{st.standardDailyHours} h day</span>
-      <span>Overtime ×{Number(st.overtimeMultiplier)}</span>
-      <span><ICal size={16} />Off: {offNames}</span>
-      <span className={pol.lopEnabled ? 'on' : ''}>Loss of pay {pol.lopEnabled ? 'on' : 'off'}</span>
-      {pol.bonusMinScore > 0 && <span className="on">Bonus {money(pol.bonusAmount)} at score {pol.bonusMinScore}+</span>}
-    </div>
 
     <div className="ps-layout">
       <nav className="ps-nav" aria-label="Pay settings sections">
@@ -114,6 +107,25 @@ export function PaySettings() {
               {([['HOURLY', 'Hourly', 'Paid for the hours worked: hours × hourly rate.'], ['MONTHLY', 'Monthly', 'A fixed monthly salary; missing days reduce it by loss of pay.']] as const).map(([k, t, d]) => (
                 <button key={k} type="button" className={st.defaultMode === k ? 'on' : ''} onClick={() => setSt({ ...st, defaultMode: k })}><IWallet size={26} /><b>{t}</b><small>{d}</small></button>))}
             </div>
+          </Card>
+          <Card title="Monthly salary: when hours are short" hint="Applies to people paid a monthly salary. Choose whether a shortfall costs the missing hours or whole days.">
+            <div className="pa-modes">
+              {([['HOURS', 'By hours', 'The salary covers a set number of hours. Missing hours cost their share of the salary; extra hours earn extra pay.'], ['DAYS', 'By days (loss of pay)', 'A short day loses a full or half day of pay. Set the rules under Loss of pay.']] as const).map(([k, t, d]) => (
+                <button key={k} type="button" className={pol.shortfallMethod === k ? 'on' : ''} onClick={() => P({ shortfallMethod: k })}><IClock size={26} /><b>{t}</b><small>{d}</small></button>))}
+            </div>
+            {pol.shortfallMethod === 'HOURS' && <>
+              <div className="pa-grid" style={{ marginTop: 14 }}>
+                <Num label="Free days off each month" value={pol.freeOffDays} max={10} onChange={v => P({ freeOffDays: v })} unit="days" hint="Paid days off on top of the weekly off. The salary covers this many days fewer, so taking them costs nothing and working them earns extra." />
+              </div>
+              <ul className="pa-example">
+                <li><b>Hours the salary covers</b>: (working days in the month − {pol.freeOffDays} free {pol.freeOffDays === 1 ? 'day' : 'days'}) × {st.standardDailyHours} h. Working days follow each person's own weekly off.</li>
+                <li><b>Hourly rate</b>: monthly salary ÷ those hours.</li>
+                <li><b>Fewer hours</b> (worked + paid leave + paid holidays): the missing hours × the hourly rate are taken off.</li>
+                <li><b>More hours</b>: the extra hours × the hourly rate × {Number(st.overtimeMultiplier)} (the overtime rate) are added, for people allowed overtime.</li>
+                <li>Example: ₹30,000 with 26 working days gives {26 - pol.freeOffDays} × {st.standardDailyHours} = {(26 - pol.freeOffDays) * st.standardDailyHours} h, so ₹{(30000 / ((26 - pol.freeOffDays) * st.standardDailyHours)).toFixed(2)} an hour.</li>
+                <li>Someone who joins mid-month is only expected from the day they joined. Daily overtime and the loss of pay rules are not used with this method.</li>
+              </ul>
+            </>}
           </Card>
           <Card title="Wages & overtime" hint="How a month is divided into days, and how overtime is paid.">
             <div className="pa-grid">
@@ -138,7 +150,8 @@ export function PaySettings() {
 
         {sec === 'lop' && <Card title="Loss of pay" hint="What happens when the daily work time is not achieved. Applies to monthly-salary employees."
           right={<Switch on={pol.lopEnabled} onClick={() => P({ lopEnabled: !pol.lopEnabled })} label={pol.lopEnabled ? 'Rules on' : 'Rules off'} />}>
-          <div className={pol.lopEnabled ? '' : 'pa-dim'}>
+          {pol.shortfallMethod === 'HOURS' && <p className="pa-note">Monthly salaries are currently paid <b>by hours</b>, so these day rules are not used for pay. Change it under Pay &amp; overtime to use them.</p>}
+          <div className={pol.lopEnabled && pol.shortfallMethod !== 'HOURS' ? '' : 'pa-dim'}>
             <div className="pa-grid">
               <Num label="Grace on the day's hours" value={pol.graceMinutes} max={120} onChange={v => P({ graceMinutes: v })} unit="min" />
               <Num label="Half day needs at least" value={pol.halfDayMinMinutes} min={30} max={720} onChange={v => P({ halfDayMinMinutes: v })} unit="min" />
@@ -178,6 +191,188 @@ export function PaySettings() {
     {(dirty || msg || err) && <div className="ap-bar pa-save">
       {err ? <span style={{ color: '#fca5a5' }}>{err}</span> : msg && !dirty ? <span>{msg}</span> : <span><b>Unsaved changes</b></span>}
       {dirty && <><button className="lh-ok" onClick={save}><ICheckCircle size={18} />Save</button><button className="ap-clear" onClick={discard}>Discard</button></>}
+      {!dirty && (msg || err) && <button className="ap-clear" onClick={() => { setMsg(''); setErr('') }}>OK</button>}
+    </div>}
+  </>)
+}
+
+/* ============ Language ============ */
+
+export function LanguageSettings() {
+  const { t, lang } = useT()
+  const L = useLoad<Gen>('/api/hr/general-settings')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const current = L.data?.defaultLanguage ?? 'en'
+  async function setDefault(l: string) {
+    if (l === current || busy) return
+    setBusy(true); setErr(''); setMsg('')
+    try { await put('/api/hr/general-settings', { defaultLanguage: l }); setMsg(t('h_saved')); L.reload() } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
+  }
+  return (<>
+    <Card title={t('h_langScreenT')} hint={t('h_langScreenD')}>
+      <div className="lg2-row">{LANGS.map(([k, l]) => <button key={k} type="button" className={lang === k ? 'on' : ''} onClick={() => setLang(k)}>{l}</button>)}</div>
+    </Card>
+    <Card title={t('h_langDefaultT')} hint={t('h_langDefaultD')}>
+      <div className="lg2-row">{LANGS.map(([k, l]) => <button key={k} type="button" className={current === k ? 'on' : ''} disabled={busy || !L.data} onClick={() => setDefault(k)}>{l}</button>)}</div>
+      {err && <p className="err">{err}</p>}{msg && !err && <p className="msg">{msg}</p>}
+    </Card>
+  </>)
+}
+
+/* ============ App info ============ */
+
+declare const __APP_VERSION__: string
+
+export function AppInfo() {
+  const info = useLoad<any>('/api/hr/app-info')
+  const gen = useLoad<Gen>('/api/hr/general-settings')
+  const d = info.data
+  const rows: [string, string][] = [
+    ['App', 'Arudra Attender'],
+    ['Company', gen.data?.companyName ?? '…'],
+    ['App version', __APP_VERSION__],
+    ['Server version', d?.backendVersion ?? '…'],
+    ['Server time', d ? new Date(d.serverTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '…'],
+    ['Server time zone', d?.timeZone ?? '…'],
+    ['Developed by', 'Arun'],
+    ['Contact', '9629129864'],
+  ]
+  return (
+    <Card title="App info" hint="Details to share with support if something needs looking at.">
+      {info.err && <p className="err">{info.err}</p>}
+      <div className="ps-rows">{rows.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
+    </Card>
+  )
+}
+
+/* ============ General settings ============ */
+
+type Gen = { companyName: string; legalName: string; companyAddress: string; addressLine2: string; city: string; state: string; pincode: string; companyPhone: string; companyEmail: string; website: string; gstin: string; pan: string; defaultLanguage: string; geoGraceMeters: number; maxAccuracyMarginMeters: number; kioskMinGapSeconds: number; phoneFaceRequired: boolean; onCheckFail: 'ASK' | 'BLOCK' | 'FLAG' }
+
+function Field({ label, children, hint, error, required, full }: { label: string; children: React.ReactNode; hint?: string; error?: string; required?: boolean; full?: boolean }) {
+  return (
+    <div className={`gf-f${full ? ' full' : ''}${error ? ' bad' : ''}`}>
+      <label>{label}{required && <span className="gf-req"> *</span>}</label>
+      {children}
+      {error ? <small className="gf-err">{error}</small> : hint ? <small>{hint}</small> : null}
+    </div>
+  )
+}
+
+/** Client-side checks that mirror the server's, so mistakes show next to the field before saving. */
+function companyErrors(g: Gen): Partial<Record<keyof Gen, string>> {
+  const e: Partial<Record<keyof Gen, string>> = {}
+  if (!g.companyName.trim()) e.companyName = 'Company name is required'
+  if (g.companyEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.companyEmail.trim())) e.companyEmail = 'Enter a valid email, like hr@company.com'
+  if (g.companyPhone.trim() && g.companyPhone.replace(/\D/g, '').length < 7) e.companyPhone = 'Enter a valid phone number'
+  if (g.pincode && !/^\d{6}$/.test(g.pincode)) e.pincode = 'PIN code is 6 digits'
+  if (g.gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(g.gstin)) e.gstin = 'Looks incomplete: 15 characters like 33ABCDE1234F1Z5'
+  if (g.pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(g.pan)) e.pan = 'Looks incomplete: 10 characters like ABCDE1234F'
+  if (g.website.trim() && !/^https?:\/\/\S+\.\S+/i.test(g.website.trim())) e.website = 'Start with http:// or https://'
+  return e
+}
+
+export function GeneralSettings() {
+  const L = useLoad<Gen>('/api/hr/general-settings')
+  const [g, setG] = useState<Gen | null>(null)
+  const [sec, setSec] = useState<'co' | 'punch'>('co')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  useEffect(() => { if (L.data) setG({ ...L.data }) }, [L.data])
+  if (!g || !L.data) return <div className="lh-sec muted">{L.err || 'Loading…'}</div>
+  const dirty = JSON.stringify(g) !== JSON.stringify(L.data)
+  const P = (patch: Partial<Gen>) => { setG({ ...g, ...patch }); setMsg(''); setErr('') }
+  async function save() {
+    setErr(''); setMsg('')
+    try {
+      await put('/api/hr/general-settings', { ...g, geoGraceMeters: Number(g!.geoGraceMeters), maxAccuracyMarginMeters: Number(g!.maxAccuracyMarginMeters), kioskMinGapSeconds: Number(g!.kioskMinGapSeconds) })
+      setMsg('Saved. Punch rules apply from the next punch.'); L.reload()
+    } catch (e: any) { setErr(e.message) }
+  }
+  const c0 = L.data
+  const CO_KEYS: (keyof Gen)[] = ['companyName', 'legalName', 'companyAddress', 'addressLine2', 'city', 'state', 'pincode', 'companyPhone', 'companyEmail', 'website', 'gstin', 'pan']
+  const coDirty = CO_KEYS.some(k => g[k] !== c0[k])
+  const fe = companyErrors(g)
+  const bad = Object.keys(fe).length > 0
+  const puDirty = g.geoGraceMeters !== c0.geoGraceMeters || g.maxAccuracyMarginMeters !== c0.maxAccuracyMarginMeters || g.kioskMinGapSeconds !== c0.kioskMinGapSeconds || g.phoneFaceRequired !== c0.phoneFaceRequired || g.onCheckFail !== c0.onCheckFail
+  const SECTIONS = [
+    { key: 'co' as const, label: 'Company', hint: 'Details, contact, address', icon: <IUsers size={20} />, dirty: coDirty },
+    { key: 'punch' as const, label: 'Punch rules', hint: 'Location and face checks', icon: <IClock size={20} />, dirty: puDirty },
+  ]
+  return (<>
+    <div className="ps-layout">
+      <nav className="ps-nav" aria-label="General settings sections">
+        {SECTIONS.map(x => (
+          <button key={x.key} type="button" className={sec === x.key ? 'on' : ''} onClick={() => setSec(x.key)}>
+            <span className="ps-nav-ic">{x.icon}</span><span className="ps-nav-t"><b>{x.label}</b><small>{x.hint}</small></span>{x.dirty && <i className="ps-dot" title="Unsaved changes" />}
+          </button>))}
+      </nav>
+      <div className="ps-body">
+        {sec === 'co' && <>
+          <Card title="Business details" hint="How your company appears to HR. The legal name and tax numbers are for records and payslips.">
+            <div className="gf-grid">
+              <Field label="Company name" required hint="The short name people know you by." error={fe.companyName}>
+                <input value={g.companyName} maxLength={120} placeholder="e.g. Arudra" onChange={e => P({ companyName: e.target.value })} /></Field>
+              <Field label="Legal / registered name" hint="As on your registration, if different." error={fe.legalName}>
+                <input value={g.legalName} maxLength={160} placeholder="e.g. Arudra Commercial Services Pvt Ltd" onChange={e => P({ legalName: e.target.value })} /></Field>
+              <Field label="GSTIN" hint="15 characters. Leave blank if not registered." error={fe.gstin}>
+                <input value={g.gstin} maxLength={15} placeholder="33ABCDE1234F1Z5" style={{ textTransform: 'uppercase' }} onChange={e => P({ gstin: e.target.value.toUpperCase() })} /></Field>
+              <Field label="PAN" hint="10 characters." error={fe.pan}>
+                <input value={g.pan} maxLength={10} placeholder="ABCDE1234F" style={{ textTransform: 'uppercase' }} onChange={e => P({ pan: e.target.value.toUpperCase() })} /></Field>
+            </div>
+          </Card>
+          <Card title="Contact" hint="Where employees and HR can reach the company.">
+            <div className="gf-grid">
+              <Field label="Phone" error={fe.companyPhone}>
+                <input type="tel" inputMode="tel" value={g.companyPhone} maxLength={30} placeholder="+91 98765 43210" onChange={e => P({ companyPhone: e.target.value })} /></Field>
+              <Field label="Email" error={fe.companyEmail}>
+                <input type="email" value={g.companyEmail} maxLength={120} placeholder="hr@yourcompany.com" onChange={e => P({ companyEmail: e.target.value })} /></Field>
+              <Field label="Website" full error={fe.website}>
+                <input type="url" value={g.website} maxLength={150} placeholder="https://yourcompany.com" onChange={e => P({ website: e.target.value })} /></Field>
+            </div>
+          </Card>
+          <Card title="Address" hint="The registered or head-office address.">
+            <div className="gf-grid">
+              <Field label="Address line 1" full error={fe.companyAddress}>
+                <input value={g.companyAddress} maxLength={200} placeholder="Door no., street" onChange={e => P({ companyAddress: e.target.value })} /></Field>
+              <Field label="Address line 2" full error={fe.addressLine2}>
+                <input value={g.addressLine2} maxLength={200} placeholder="Area, landmark (optional)" onChange={e => P({ addressLine2: e.target.value })} /></Field>
+              <Field label="City" error={fe.city}><input value={g.city} maxLength={80} onChange={e => P({ city: e.target.value })} /></Field>
+              <Field label="State" error={fe.state}><input value={g.state} maxLength={80} onChange={e => P({ state: e.target.value })} /></Field>
+              <Field label="PIN code" error={fe.pincode}>
+                <input inputMode="numeric" value={g.pincode} maxLength={6} placeholder="600001" onChange={e => P({ pincode: e.target.value.replace(/\D/g, '') })} /></Field>
+            </div>
+          </Card>
+        </>}
+        {sec === 'punch' && <>
+          <Card title="When a check fails" hint="A punch can fail the location, office WiFi, face or phone check. Choose what happens next.">
+            <div className="pa-modes pa-modes3">
+              {([['ASK', 'Employee chooses', 'They are told what failed, then fix it and try again, or send it to HR with a reason. HR only sees what they send.'],
+                 ['BLOCK', 'Block the punch', 'The punch is refused and nothing is recorded. They must fix the problem or ask HR.'],
+                 ['FLAG', 'Record and flag', 'The punch is recorded straight away and every failed one goes to HR to approve.']] as const).map(([k, t, d]) => (
+                <button key={k} type="button" className={g.onCheckFail === k ? 'on' : ''} onClick={() => P({ onCheckFail: k })}><IAlert size={24} /><b>{t}</b><small>{d}</small></button>))}
+            </div>
+          </Card>
+          <Card title="Location checks" hint="A punch from a phone or kiosk must be inside the radius of a saved location (Locations page).">
+            <div className="pa-grid">
+              <Num label="Extra distance allowed" value={g.geoGraceMeters} max={1000} onChange={v => P({ geoGraceMeters: v })} unit="metres" hint="Added to each location's radius." />
+              <Num label="Most GPS error forgiven" value={g.maxAccuracyMarginMeters} max={2000} onChange={v => P({ maxAccuracyMarginMeters: v })} unit="metres" hint="A weak GPS fix helps the person by at most this much." />
+            </div>
+          </Card>
+          <Card title="Punching" hint="Rules that stop accidental and borrowed punches.">
+            <div className="pa-grid">
+              <Num label="Minimum time between in and out" value={g.kioskMinGapSeconds} max={3600} onChange={v => P({ kioskMinGapSeconds: v })} unit="seconds" hint="Stops a double scan at the kiosk from clocking someone straight back out." />
+            </div>
+            <div style={{ marginTop: 12 }}><Switch on={g.phoneFaceRequired} onClick={() => P({ phoneFaceRequired: !g.phoneFaceRequired })} label={g.phoneFaceRequired ? 'Phone punches need a matching face' : 'Phone punches do not need a face'} /></div>
+          </Card>
+        </>}
+      </div>
+    </div>
+    {(dirty || msg || err) && <div className="ap-bar pa-save">
+      {err ? <span style={{ color: '#fca5a5' }}>{err}</span> : msg && !dirty ? <span>{msg}</span> : <span><b>Unsaved changes</b></span>}
+      {dirty && <><button className="lh-ok" onClick={save} disabled={bad} title={bad ? 'Fix the highlighted fields first' : ''}><ICheckCircle size={18} />Save</button><button className="ap-clear" onClick={() => setG({ ...L.data! })}>Discard</button></>}
       {!dirty && (msg || err) && <button className="ap-clear" onClick={() => { setMsg(''); setErr('') }}>OK</button>}
     </div>}
   </>)
@@ -264,14 +459,15 @@ export function Payroll() {
 
     {rows && <Card title={prev ? `Preview for ${period}` : 'Payslips'} hint={prev ? 'Nothing is saved yet. Generate to create the payslips.' : undefined}>
       <div className="scroll"><table className="pa-table">
-        <thead><tr><th>Employee</th><th>Hours</th><th>OT</th><th>Allow.</th><th>Loss of pay</th><th>Bonus</th><th>Gross</th><th>Deduct.</th>{!prev && <th>Adjust</th>}<th>Net</th><th>Score</th></tr></thead>
+        <thead><tr><th>Employee</th><th>Hours</th><th>OT / Extra</th><th>Allow.</th><th>Loss of pay / Short</th><th>Bonus</th><th>Gross</th><th>Deduct.</th>{!prev && <th>Adjust</th>}<th>Net</th><th>Score</th></tr></thead>
         <tbody>{rows.map(p => (
           <tr key={p.id ?? p.employeeId}>
             <td><b>{p.employeeName}</b><div className="muted">{(p.payMode ?? p.mode ?? '').toLowerCase()}</div></td>
-            <td>{p.regularHours} h{Number(p.creditHours) > 0 && <div className="muted">+{p.creditHours} h leave/holiday</div>}</td>
-            <td>{p.overtimeHours} h</td>
+            <td>{p.regularHours} h{Number(p.creditHours) > 0 && <div className="muted">+{p.creditHours} h leave/holiday</div>}{p.shortfallMethod === 'HOURS' && <div className="muted">of {p.requiredHours} h</div>}</td>
+            <td>{p.shortfallMethod === 'HOURS' ? (Number(p.extraHours) > 0 ? <span className="pa-xtra">+{p.extraHours} h<div>+{money(p.extraAmount)}</div></span> : '—') : `${p.overtimeHours} h`}</td>
             <td>{money(p.allowances)}</td>
-            <td>{Number(p.lopDays) > 0 ? <span className="pa-lop">{Number(p.lopDays)} d<div>−{money(p.lopAmount)}</div></span> : '—'}</td>
+            <td>{p.shortfallMethod === 'HOURS' ? (Number(p.shortfallHours) > 0 ? <span className="pa-lop">{Number(p.shortfallHours)} h<div>−{money(p.shortfallAmount)}</div></span> : '—')
+              : Number(p.lopDays) > 0 ? <span className="pa-lop">{Number(p.lopDays)} d<div>−{money(p.lopAmount)}</div></span> : '—'}</td>
             <td>{Number(p.bonus) > 0 ? money(p.bonus) : '—'}</td>
             <td>{money(p.gross)}</td>
             <td title={p.deductionDetail ?? ''}>{money(p.deductions)}</td>

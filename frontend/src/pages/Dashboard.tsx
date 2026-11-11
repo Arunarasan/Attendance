@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { get } from '../lib/api'
+import { useT } from '../lib/i18n'
 import { IAlert, ICalCheck, ICalPlus, ICheckCircle, ICheckSq, IBars, IUmbrella, IUserPlus, IUsers, IArrowR } from '../components/icons'
 
 type Row = { employeeId: number; checkIn: string | null; leaveType: string | null; holiday: string | null }
@@ -61,6 +62,7 @@ function Donut({ present, leave, absent }: { present: number; leave: number; abs
 }
 
 export default function Dashboard({ go }: { go: (tab: string) => void }) {
+  const { t: tr } = useT()
   const [emps, setEmps] = useState<Emp[]>([])
   const [days, setDays] = useState<{ date: Date; rows: Row[] }[]>([])
   const [pending, setPending] = useState(0)
@@ -83,31 +85,31 @@ export default function Dashboard({ go }: { go: (tab: string) => void }) {
   return (<>
     {err && <div className="err">{err}</div>}
     <div className="dx-stats">
-      <div className="dx-stat g1"><span className="ic"><IUsers size={26} /></span><div className="n">{active}</div><div className="l">Total Employees</div><div className="s">{emps.length - active > 0 ? `${emps.length - active} inactive` : 'All active'}</div></div>
-      <div className="dx-stat g2"><span className="ic"><ICheckCircle size={26} /></span><div className="n">{t.present}</div><div className="l">Present Today</div><div className="s">{t.pct.toFixed(1)}% Attendance</div></div>
-      <div className="dx-stat g3"><span className="ic"><IUserPlus size={26} /></span><div className="n">{t.leave}</div><div className="l">On Leave</div><div className="s">{active ? ((t.leave / active) * 100).toFixed(1) : '0'}% of Employees</div></div>
-      <div className="dx-stat g4"><span className="ic"><IAlert size={26} /></span><div className="n">{pending}</div><div className="l">Pending Approvals</div><div className="s" onClick={() => go('approve')}>Needs your action →</div></div>
+      <div className="dx-stat g1"><span className="ic"><IUsers size={26} /></span><div className="n">{active}</div><div className="l">{tr('h_totalEmp')}</div><div className="s">{emps.length - active > 0 ? `${emps.length - active} ${tr('h_inactive')}` : tr('h_allActive')}</div></div>
+      <div className="dx-stat g2"><span className="ic"><ICheckCircle size={26} /></span><div className="n">{t.present}</div><div className="l">{tr('h_presentToday')}</div><div className="s">{t.pct.toFixed(1)}% {tr('h_attPct')}</div></div>
+      <div className="dx-stat g3"><span className="ic"><IUserPlus size={26} /></span><div className="n">{t.leave}</div><div className="l">{tr('h_onLeave')}</div><div className="s">{active ? ((t.leave / active) * 100).toFixed(1) : '0'}% {tr('h_ofEmp')}</div></div>
+      <div className="dx-stat g4"><span className="ic"><IAlert size={26} /></span><div className="n">{pending}</div><div className="l">{tr('h_pendingAppr')}</div><div className="s" onClick={() => go('approve')}>{tr('h_needsAction')} →</div></div>
     </div>
 
     <div className="dx-mid">
-      <div className="dx-card"><div className="hd"><h3>Attendance Trend</h3><span className="dx-pill">Last 6 days</span></div><Trend pts={pts} /></div>
-      <div className="dx-card"><div className="hd"><h3>Today's Attendance</h3></div>
+      <div className="dx-card"><div className="hd"><h3>{tr('h_attTrend')}</h3><span className="dx-pill">{tr('h_last6')}</span></div><Trend pts={pts} /></div>
+      <div className="dx-card"><div className="hd"><h3>{tr('h_todaysAtt')}</h3></div>
         <div className="dx-donut"><Donut present={t.present} leave={t.leave} absent={t.absent} />
           <div className="dx-legend">
-            <div><i style={{ background: '#287A3E' }} />Present<b>{t.present}</b></div>
-            <div><i style={{ background: '#f5c542' }} />On Leave<b>{t.leave}</b></div>
-            <div><i style={{ background: '#f4a3a3' }} />Absent<b>{t.absent}</b></div>
+            <div><i style={{ background: '#287A3E' }} />{tr('present')}<b>{t.present}</b></div>
+            <div><i style={{ background: '#f5c542' }} />{tr('h_onLeave')}<b>{t.leave}</b></div>
+            <div><i style={{ background: '#f4a3a3' }} />{tr('h_absent')}<b>{t.absent}</b></div>
           </div></div></div>
     </div>
 
-    <div className="dx-qa-h"><h3>Quick Actions</h3><a onClick={() => go('register')}>Manage All <IArrowR size={14} /></a></div>
+    <div className="dx-qa-h"><h3>{tr('h_quick')}</h3><a onClick={() => go('register')}>{tr('h_manageAll')} <IArrowR size={14} /></a></div>
     <div className="dx-qa">
-      <button onClick={() => go('emps')}><IUserPlus />Add Employee</button>
-      <button onClick={() => go('register')}><ICalCheck />Mark Attendance</button>
-      <button onClick={() => go('approve')}><ICheckSq />Approve Requests</button>
-      <button onClick={() => go('leave')}><ICalPlus />Add Leave</button>
-      <button onClick={() => go('holidays')}><IUmbrella />Holiday</button>
-      <button onClick={() => go('pay')}><IBars />Generate Report</button>
+      <button onClick={() => go('emps')}><IUserPlus />{tr('h_addEmp')}</button>
+      <button onClick={() => go('register')}><ICalCheck />{tr('h_markAtt')}</button>
+      <button onClick={() => go('approve')}><ICheckSq />{tr('h_approveReq')}</button>
+      <button onClick={() => go('leave')}><ICalPlus />{tr('h_addLeave')}</button>
+      <button onClick={() => go('holidays')}><IUmbrella />{tr('h_holiday')}</button>
+      <button onClick={() => go('pay')}><IBars />{tr('h_genReport')}</button>
     </div>
   </>)
 }
