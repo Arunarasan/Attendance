@@ -163,7 +163,7 @@ export function PaySettings() {
                 <input type="number" min="0" max="100" value={pol[k]} onChange={e => P({ [k]: Number(e.target.value) } as any)} />
                 <span>{wsum ? Math.round((pol[k] / wsum) * 100) : 0}%</span></div>))}
           </div>
-          <div className="pa-bar">{[['wAttendance', '#3f9a1b'], ['wPunctuality', '#8ad04e'], ['wHours', '#f5c542'], ['wDiscipline', '#f97316']].map(([k, c]) => <i key={k} style={{ width: `${wsum ? ((pol as any)[k] / wsum) * 100 : 0}%`, background: c }} />)}</div>
+          <div className="pa-bar">{[['wAttendance', '#287A3E'], ['wPunctuality', '#8ad04e'], ['wHours', '#f5c542'], ['wDiscipline', '#E87516']].map(([k, c]) => <i key={k} style={{ width: `${wsum ? ((pol as any)[k] / wsum) * 100 : 0}%`, background: c }} />)}</div>
           <div className="pa-levels"><span className="lv gold">Gold 90+</span><span className="lv silver">Silver 75+</span><span className="lv bronze">Bronze 60+</span><span className="lv imp">Needs improvement</span></div>
           <div className="pa-grid" style={{ marginTop: 14 }}>
             <Num label="Attendance bonus for a score of" value={pol.bonusMinScore} max={100} onChange={v => P({ bonusMinScore: v })} unit="or more" hint="0 = no bonus." />

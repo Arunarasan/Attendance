@@ -1,25 +1,25 @@
 /* AttendancePro green theme (light only, so every screen matches the design) */
 :root {
-  --bg: #f4f7ee; --card: #fff; --ink: #1f2a1c; --muted: #6b7a63; --line: #e4ead9;
-  --brand: #3f9a1b; --brand-2: #2f7d12; --brand-ink: #fff; --brand-soft: #e6f4d9;
-  --side: #1d4a22; --side-2: #265c2b; --side-ink: #e8f3df;
-  --warn: #b45309; --warn-bg: #fef3c7; --bad: #dc2626; --bad-bg: #fde8e8; --ok-bg: #e3f5d6; --ok: #2f7d12; --accent: #f97316;
-  --radius: 16px; --shadow: 0 6px 22px rgba(60, 100, 30, .10);
+  --bg: #F1EEDD; --card: #F8F5EA; --ink: #174D2C; --muted: #5f7a63; --line: #dfe3cb;
+  --brand: #287A3E; --brand-2: #287A3E; --brand-ink: #fff; --brand-soft: #dcebcf;
+  --side: #174D2C; --side-2: #1f5f37; --side-ink: #e8f3df;
+  --warn: #b45309; --warn-bg: #fef3c7; --bad: #dc2626; --bad-bg: #fde8e8; --ok-bg: #e3f5d6; --ok: #287A3E; --accent: #E87516;
+  --radius: 16px; --shadow: 0 6px 22px rgba(23, 77, 44, .10);
   color-scheme: light;
 }
 * { box-sizing: border-box; }
 a { color: var(--brand); }
-body { margin: 0; font: 15px/1.5 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--ink); }
+body { margin: 0; font: 15px/1.5 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg) url('/app-bg.webp') center top / cover no-repeat fixed; color: var(--ink); }
 .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
 .narrow { max-width: 440px; }
-header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+header.top { backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: rgba(248, 245, 234, .92); border-bottom: 1px solid var(--line); }
 header.top b { font-size: 16px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
 h2 { font-size: 17px; margin: 0 0 12px; font-weight: 600; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
 .tabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 12px; border-radius: 8px; cursor: pointer; }
 .tabs button.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
-button.primary, button.btn { background: linear-gradient(180deg, #4aa81f, var(--brand-2)); color: var(--brand-ink); border: 0; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: inherit; }
+button.primary, button.btn { background: linear-gradient(180deg, #3f9456, var(--brand-2)); color: var(--brand-ink); border: 0; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: inherit; }
 button.btn.ghost { background: transparent; background-image: none; color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
 button.btn.danger { background: var(--bad); background-image: none; color: #fff; }
 button.big { width: 100%; padding: 18px; font-size: 18px; }
@@ -46,7 +46,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 /* Dark room: the whole screen turns white so it lights the face for the camera. */
 .fill-light { background: #fff; color: #111; }
 .fill-light .muted { color: #333; }
-.fill-light a { color: #2f7d12; }
+.fill-light a { color: #287A3E; }
 
 /* ---- Employees tab ---- */
 .emp-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }

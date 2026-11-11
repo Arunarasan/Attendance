@@ -26,8 +26,8 @@ function Trend({ pts }: { pts: { label: string; pct: number }[] }) {
       <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4aa81f" stopOpacity=".28" /><stop offset="1" stopColor="#4aa81f" stopOpacity="0" /></linearGradient></defs>
       {[80, 85, 90, 95, 100].map(v => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="#e6ecdb" /><text x={L - 8} y={y(v) + 4} textAnchor="end">{v}%</text></g>)}
       {pts.length > 1 && <path d={`${path} L${x(pts.length - 1)} ${H - B} L${x(0)} ${H - B}Z`} fill="url(#trendFill)" />}
-      <path d={path} fill="none" stroke="#3f9a1b" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.pct)} r="4.5" fill="#fff" stroke="#3f9a1b" strokeWidth="2" />)}
+      <path d={path} fill="none" stroke="#287A3E" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.pct)} r="4.5" fill="#fff" stroke="#287A3E" strokeWidth="2" />)}
       {pts.map((p, i) => <text key={i} x={x(i)} y={H - 8} textAnchor="middle">{p.label}</text>)}
       {pts.length > 0 && (
         <g transform={`translate(${x(best)} ${y(pts[best].pct) - 14})`}>
@@ -43,7 +43,7 @@ function Trend({ pts }: { pts: { label: string; pct: number }[] }) {
 function Donut({ present, leave, absent }: { present: number; leave: number; absent: number }) {
   const total = present + leave + absent
   const r = 54, c = 2 * Math.PI * r
-  const seg = [[present, '#3f9a1b'], [leave, '#f5c542'], [absent, '#f4a3a3']] as const
+  const seg = [[present, '#287A3E'], [leave, '#f5c542'], [absent, '#f4a3a3']] as const
   let off = 0
   return (
     <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Today's attendance">
@@ -54,8 +54,8 @@ function Donut({ present, leave, absent }: { present: number; leave: number; abs
         off += len
         return el
       })}
-      <text x="75" y="76" textAnchor="middle" style={{ font: '700 22px Poppins, sans-serif', fill: '#1f2a1c' }}>{total ? ((present / total) * 100).toFixed(1) : '0'}%</text>
-      <text x="75" y="95" textAnchor="middle" style={{ font: '13px Poppins, sans-serif', fill: '#5d6b55' }}>Present</text>
+      <text x="75" y="76" textAnchor="middle" style={{ font: '700 22px Poppins, sans-serif', fill: '#174D2C' }}>{total ? ((present / total) * 100).toFixed(1) : '0'}%</text>
+      <text x="75" y="95" textAnchor="middle" style={{ font: '13px Poppins, sans-serif', fill: '#5f7a63' }}>Present</text>
     </svg>
   )
 }
@@ -94,7 +94,7 @@ export default function Dashboard({ go }: { go: (tab: string) => void }) {
       <div className="dx-card"><div className="hd"><h3>Today's Attendance</h3></div>
         <div className="dx-donut"><Donut present={t.present} leave={t.leave} absent={t.absent} />
           <div className="dx-legend">
-            <div><i style={{ background: '#3f9a1b' }} />Present<b>{t.present}</b></div>
+            <div><i style={{ background: '#287A3E' }} />Present<b>{t.present}</b></div>
             <div><i style={{ background: '#f5c542' }} />On Leave<b>{t.leave}</b></div>
             <div><i style={{ background: '#f4a3a3' }} />Absent<b>{t.absent}</b></div>
           </div></div></div>

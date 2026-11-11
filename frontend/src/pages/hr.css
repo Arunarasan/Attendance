@@ -9,7 +9,7 @@
 .hx-nav { display: flex; flex-direction: column; gap: 4px; position: relative; z-index: 1; overflow-y: auto; }
 .hx-nav button { display: flex; align-items: center; gap: 14px; width: 100%; padding: 11px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--side-ink); font: inherit; font-size: 15px; cursor: pointer; text-align: left; transition: background .15s; }
 .hx-nav button:hover { background: rgba(255, 255, 255, .08); }
-.hx-nav button.on { background: linear-gradient(180deg, #8ad04e, #6dba3a); color: #11330f; font-weight: 600; box-shadow: 0 4px 12px rgba(0, 0, 0, .2); }
+.hx-nav button.on { background: linear-gradient(180deg, #A8C98D, #6dba3a); color: #11330f; font-weight: 600; box-shadow: 0 4px 12px rgba(0, 0, 0, .2); }
 .hx-nav svg { width: 22px; height: 22px; flex: none; }
 .hx-nav .badge { margin-left: auto; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .hx-leaves { position: absolute; left: -10px; bottom: -6px; width: 190px; opacity: .9; pointer-events: none; transform: scaleY(-1) rotate(-8deg); }
@@ -23,7 +23,7 @@
 .hx-bell:hover { background: var(--card); }
 .hx-bell i { position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; border-radius: 99px; background: var(--bad); color: #fff; font: 600 11px/18px 'Poppins', sans-serif; text-align: center; font-style: normal; padding: 0 4px; }
 .hx-user { display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 4px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); }
-.hx-user .av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #8ad04e, #2f7d12); color: #fff; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.hx-user .av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #A8C98D, #287A3E); color: #fff; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .hx-user b { display: block; font-size: 14px; line-height: 1.2; }
 .hx-user small { color: var(--muted); font-size: 12px; }
 .hx-user button { border: 0; background: transparent; cursor: pointer; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 99px; }
@@ -34,12 +34,12 @@
 /* dashboard */
 .dx-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
 .dx-stat { position: relative; overflow: hidden; border-radius: 18px; padding: 16px 18px 14px; border: 1px solid rgba(255, 255, 255, .8); box-shadow: var(--shadow); }
-.dx-stat.g1 { background: linear-gradient(135deg, #dff1c8, #cfe9b0); }
+.dx-stat.g1 { background: linear-gradient(135deg, #dcebcf, #cfe9b0); }
 .dx-stat.g2 { background: linear-gradient(135deg, #e8f6d8, #f3faea); }
 .dx-stat.g3 { background: linear-gradient(135deg, #fdf3d4, #fef9e8); }
 .dx-stat.g4 { background: linear-gradient(135deg, #fde0dd, #fdeceb); }
 .dx-stat .ic { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px; background: rgba(255, 255, 255, .7); }
-.dx-stat.g1 .ic, .dx-stat.g2 .ic { color: #2f9a1f; }
+.dx-stat.g1 .ic, .dx-stat.g2 .ic { color: #287A3E; }
 .dx-stat.g3 .ic { color: #e69a12; }
 .dx-stat.g4 .ic { color: #e0352b; }
 .dx-stat .n { font-size: 32px; font-weight: 700; line-height: 1.1; letter-spacing: -.5px; }
@@ -52,7 +52,7 @@
 .dx-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
 .dx-card h3 { margin: 0; font-size: 17px; font-weight: 600; }
 .dx-card .hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.dx-pill { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 4px 10px; font-size: 12px; color: var(--ink); }
+.dx-pill { border: 1px solid var(--line); background: #F8F5EA; border-radius: 10px; padding: 4px 10px; font-size: 12px; color: var(--ink); }
 .dx-chart { width: 100%; height: auto; display: block; }
 .dx-chart text { font: 11px 'Poppins', sans-serif; fill: #5d6b55; }
 .dx-donut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }

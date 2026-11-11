@@ -89,14 +89,14 @@ const monthOf = (offset: number) => { const d = new Date(); d.setDate(1); d.setM
 
 function Donut({ present, leave, total }: { present: number; leave: number; total: number }) {
   const r = 52, c = 2 * Math.PI * r
-  const seg: [number, string][] = [[present, '#3f9a1b'], [leave, '#f5c542']]
+  const seg: [number, string][] = [[present, '#287A3E'], [leave, '#f5c542']]
   let off = 0
   return (
     <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true">
       <circle cx="75" cy="75" r={r} fill="none" stroke="#eef2e6" strokeWidth="16" />
       {total > 0 && seg.map(([n, col], i) => { const len = (n / total) * c; const el = n > 0 ? <circle key={i} cx="75" cy="75" r={r} fill="none" stroke={col} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 2)} ${c}`} strokeDashoffset={-off} transform="rotate(-90 75 75)" /> : null; off += len; return el })}
-      <text x="75" y="76" textAnchor="middle" style={{ font: '700 22px Poppins, sans-serif', fill: '#1f2a1c' }}>{total ? ((present / total) * 100).toFixed(1) : '0'}%</text>
-      <text x="75" y="95" textAnchor="middle" style={{ font: '12px Poppins, sans-serif', fill: '#5d6b55' }}>Attendance</text>
+      <text x="75" y="76" textAnchor="middle" style={{ font: '700 22px Poppins, sans-serif', fill: '#174D2C' }}>{total ? ((present / total) * 100).toFixed(1) : '0'}%</text>
+      <text x="75" y="95" textAnchor="middle" style={{ font: '12px Poppins, sans-serif', fill: '#5f7a63' }}>Attendance</text>
     </svg>
   )
 }
@@ -163,7 +163,7 @@ function Timesheet({ version }: { version: number }) {
     <section className="pm-card pm-donut">
       <Donut present={days.length} leave={leave} total={days.length + leave} />
       <div className="pm-legend">
-        <div><i style={{ background: '#3f9a1b' }} />{t('present')}<b>{days.length}</b></div>
+        <div><i style={{ background: '#287A3E' }} />{t('present')}<b>{days.length}</b></div>
         <div><i style={{ background: '#f5c542' }} />{t('leave')}<b>{Number.isInteger(leave) ? leave : leave.toFixed(1)}</b></div>
         <div><i style={{ background: '#f4a3a3' }} />{t('overtime')}<b>{fmtHours(ot)}</b></div>
       </div>
@@ -321,7 +321,7 @@ function Leave() {
         const pct = b.remaining != null && Number(b.quota) > 0 ? Math.max(0, Math.min(100, (Number(b.remaining) / Number(b.quota)) * 100)) : 100
         return (
           <button key={b.leaveTypeId} type="button" className={`lv-type${sel ? ' on' : ''}`} onClick={() => setF({ ...f, leaveTypeId: String(b.leaveTypeId) })}>
-            <span className="lv-ring" style={{ background: `conic-gradient(#3f9a1b ${pct}%, #e8eddc 0)` }}><span>{typeIcon(b.name, 22)}</span></span>
+            <span className="lv-ring" style={{ background: `conic-gradient(#287A3E ${pct}%, #e1e5cd 0)` }}><span>{typeIcon(b.name, 22)}</span></span>
             <b>{b.name}</b>
             <small>{b.remaining != null ? `${num(b.remaining)} of ${num(b.quota)} left` : 'No limit'}</small>
             {Number(b.pending) > 0 && <em>{num(b.pending)} waiting</em>}
@@ -400,10 +400,10 @@ function PayslipCard({ p, open, onToggle }: { p: any; open: boolean; onToggle: (
       </button>
       {open && <div className="ps2-body">
         <div className="ps2-bar" title="Where the money goes">
-          <i style={{ width: `${earn > 0 ? Math.max(0, (n(p.net) / (earn + n(p.lopAmount))) * 100) : 0}%`, background: '#3f9a1b' }} />
+          <i style={{ width: `${earn > 0 ? Math.max(0, (n(p.net) / (earn + n(p.lopAmount))) * 100) : 0}%`, background: '#287A3E' }} />
           <i style={{ width: `${earn > 0 ? (cut / (earn + n(p.lopAmount))) * 100 : 0}%`, background: '#f4a3a3' }} />
         </div>
-        <div className="ps2-legend"><span><i style={{ background: '#3f9a1b' }} />You receive {m(p.net)}</span>{cut > 0 && <span><i style={{ background: '#f4a3a3' }} />Taken off {m(cut)}</span>}</div>
+        <div className="ps2-legend"><span><i style={{ background: '#287A3E' }} />You receive {m(p.net)}</span>{cut > 0 && <span><i style={{ background: '#f4a3a3' }} />Taken off {m(cut)}</span>}</div>
 
         <h4>Earnings</h4>
         <div className="ps-rows">

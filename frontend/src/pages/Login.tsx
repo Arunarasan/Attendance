@@ -16,7 +16,7 @@ const IconArrow = () => <Svg size={20}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>
 const IconFace = () => <Svg size={20}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><path d="M9 10v1M15 10v1M9.500 15c.7.7 1.500 1 2.500 1s1.800-.3 2.500-1" /></Svg>
 const IconCalendar = () => <Svg size={34}><rect x="3.500" y="5" width="17" height="15.500" rx="3" /><path d="M8 3v4M16 3v4" /><path d="M8.500 13l2.500 2.500 4.500-5" /></Svg>
 
-/** One identifier box: an email signs in as HR/admin; an employee ID or phone number signs in an employee. */
+/** One box: employee ID or phone number signs in an employee; an email signs in HR/admin. */
 export default function Login({ onDone }: { onDone: () => void }) {
   const nav = useNavigate()
   const remembered = readRemembered()
