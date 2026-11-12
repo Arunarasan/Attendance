@@ -1,0 +1,27 @@
+== setup
+== 12 parallel clock-in requests for one employee (expect exactly 1 open session)
+      1 200
+     11 409
+sessions stored: 1
+== 8 parallel payroll generate for same new month (expect 1x200, rest 409, 1 run)
+      1 200
+      7 409
+runs for 2026-09: 1
+== 8 parallel duplicate leave requests, same dates (expect 1 accepted)
+      1 200
+      7 409
+leave rows stored for that day: 1
+== 8 parallel duplicate employee code create (expect 1 created)
+      1 200
+      7 409
+RACE1 rows: 1
+== response times (30 sequential calls each, curl total seconds)
+/api/me                                          n=30 p50=11ms p95=28ms max=31ms
+/api/me/today                                    n=30 p50=5ms p95=10ms max=28ms
+/api/hr/employees                                n=30 p50=64ms p95=102ms max=132ms
+/api/hr/attendance/pending                       n=30 p50=17ms p95=34ms max=41ms
+/api/hr/payroll/runs                             n=30 p50=5ms p95=24ms max=29ms
+/api/hr/settings                                 n=30 p50=4ms p95=19ms max=20ms
+/api/public/config                               n=30 p50=3ms p95=5ms max=27ms
+/api/hr/attendance/register?date=2026-10-05      n=30 p50=59ms p95=73ms max=81ms
+POST /api/auth/login (bcrypt)                    n=5 p50=107ms p95=114ms max=117ms

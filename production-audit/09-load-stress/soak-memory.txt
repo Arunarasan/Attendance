@@ -1,0 +1,6 @@
+t=0s  live heap after GC: 113749 KB (young 73806, tenured 39943)  metaspace 47969 KB  process RSS 265508 KB
+t=60s  live heap after GC: 146595 KB (young 8653, tenured 137942)  metaspace 47985 KB  process RSS 392864 KB
+t=120s  live heap after GC: 52925 KB (young 5944, tenured 46981)  metaspace 47677 KB  process RSS 392920 KB
+t=180s  live heap after GC: 27098 KB (young 6, tenured 27092)  metaspace 47677 KB  process RSS 393068 KB
+t=240s  live heap after GC: 25332 KB (young 0, tenured 25332)  metaspace 47677 KB  process RSS 388824 KB
+t=300s  live heap after GC: 25332 KB (young 0, tenured 25332)  metaspace 47677 KB  process RSS 388828 KB

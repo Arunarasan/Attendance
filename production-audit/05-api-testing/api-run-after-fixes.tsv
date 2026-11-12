@@ -1,0 +1,67 @@
+A01	IDOR	Employee B cancels employee A's leave request	exp=403|404|400	got=404	PASS	{"code":"NOT_FOUND","message":"Leave request not found"} 
+A02	IDOR	Employee B's leave list does not include A's request	exp=200	got=200	PASS	[] 
+A03	IDOR	Employee B payslips contain no other employee names	exp=200	got=200	PASS	[] 
+A04	IDOR	employeeId query param on /me/timesheet ignored (returns B's own data)	exp=200	got=200	PASS	{"sessions":[],"days":[]} 
+A05	IDOR	Employee reads another employee's pay settings	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:17.984+00:00","status":403,"error":"Forbidden","path":"/api/hr/employ
+A06	IDOR	Employee edits pay settings	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:18.362+00:00","status":403,"error":"Forbidden","path":"/api/hr/employ
+A07	IDOR	Employee reads another's leave balances	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:18.718+00:00","status":403,"error":"Forbidden","path":"/api/hr/leave/
+A08	IDOR	Employee approves leave (privilege escalation)	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:19.080+00:00","status":403,"error":"Forbidden","path":"/api/hr/leave/
+A09	IDOR	Password change with foreign employeeId in body	exp=200|400	got=200	PASS	{"status":"CHANGED"} 
+A10	IDOR	Employee A's password NOT changed by B's request	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong employee ID / phone number or password"} 
+A11	Privilege	Employee creates an ADMIN	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:20.427+00:00","status":403,"error":"Forbidden","path":"/api/hr/employ
+A12	Privilege	Employee promotes self to ADMIN	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:20.792+00:00","status":403,"error":"Forbidden","path":"/api/hr/employ
+A13	Privilege	HR role can list employees	exp=200	got=200	PASS	[{"id":1,"employeeCode":"ADMIN","name":"Administrator","email":"audit@test.local","phone":null,"role
+A14	Privilege	HR (non-admin) creates an ADMIN account	exp=403	got=403	PASS	{"code":"FORBIDDEN","message":"Only an admin can create or change admin accounts"} 
+A15	Privilege	HR demotes and deactivates another ADMIN	exp=403	got=403	PASS	{"code":"FORBIDDEN","message":"Only an admin can create or change admin accounts"} 
+A16	Privilege	Employee enrols face for ADMIN via HR route	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:11:23.183+00:00","status":403,"error":"Forbidden","path":"/api/hr/employ
+A17	JWT	alg=none token for admin	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A18	JWT	alg=none, no trailing dot	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A19	JWT	Admin claims with bogus signature	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A20	JWT	Valid token still works (control)	exp=200	got=200	PASS	{"id":2,"employeeCode":"P101","name":"P101","email":"p101@t.local","phone":"9100000101","role":"EMPL
+A21	JWT	Valid header + tampered payload + wrong sig	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A22	JWT	Authorization header 'Bearer' with no token	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A23	JWT	Basic auth header rejected	exp=401	got=401	PASS	 
+A24	JWT	Admin token forged with public default secret (instance has custom secret)	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A25	SQLi	SQL injection in login email	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong email or password"} 
+A26	SQLi	SQL injection in login password	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong email or password"} 
+A27	SQLi	SQL injection in employee code	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong employee ID / phone number or password"} 
+A28	SQLi	SQL injection in date param	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid request"} 
+A29	SQLi	Stacked query in month param	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"month must look like 2026-10"} 
+A30	Input	Malformed JSON	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid request"} 
+A31	Input	JSON array instead of object	exp=400|401	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid request"} 
+A32	Input	Form body with JSON content type	exp=400|401	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid request"} 
+A33	Input	Wrong content-type on login	exp=400|401|415	got=415	PASS	{"timestamp":"2026-11-11T06:11:32.032+00:00","status":415,"error":"Unsupported Media Type","path":"/
+A34	Method	DELETE on employee (no such route)	exp=404|405|403	got=405	PASS	{"code":"METHOD_NOT_ALLOWED","message":"That method is not allowed here"} 
+A35	Method	Unknown HR route	exp=404	got=404	PASS	{"timestamp":"2026-11-11T06:11:32.824+00:00","status":404,"error":"Not Found","path":"/api/hr/nope"}
+A36	Exposure	/actuator not exposed	exp=401|403|404	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A37	Exposure	/h2-console not exposed	exp=401|403|404	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A38	Exposure	Path traversal into HR via public path	exp=401|404|400	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+A39	Exposure	Encoded traversal	exp=400|404|401|403	got=400	PASS	<!doctype html><html lang="en"><head><title>HTTP Status 400 – Bad Request</title><style type="text
+A40	Input	3 MB photo in punch body (README says photos must be < 300 KB)	exp=400|413|422	got=	FAIL	<!doctype html><html lang="en"><head><title>HTTP Status 400 – Bad Request</title><style type="text
+A41	Input	5,000-character name	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Name is too long (at most 120 characters)"} 
+A42	XSS	HTML in name is stored (frontend must escape; see UI note)	exp=200|201|400	got=200	PASS	{"id":6,"employeeCode":"XSS1","name":"<img src=x onerror=alert(1)>","email":"x1@t.local","phone":"91
+A43	Input	Impossible period 9999-99	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"period must look like 2026-10"} 
+A44	Input	Unknown payroll mode	exp=400|409	got=400	PASS	{"code":"BAD_REQUEST","message":"mode must be HOURLY or MONTHLY"} 
+A45	Input	Absurd payroll adjustment amount	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"The adjustment is too large"} 
+A46	Input	Non-numeric adjustment	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid request"} 
+A47	Input	Adjust nonexistent payslip	exp=404|400	got=404	PASS	{"code":"NOT_FOUND","message":"Payslip not found"} 
+A48	CORS	Preflight from https://evil.example gets no allow-origin	exp=403|200	got=403	PASS	Vary: Access-Control-Request-Method Vary: Access-Control-Request-Headers 
+A49	CORS	Configured origin is allowed	exp=200	got=200	PASS	Access-Control-Allow-Origin: http://localhost:5173 
+A50	CORS	Allow-origin echoes only the configured origin	exp=200	got=200	PASS	allow-origin check 
+A51	Throttle	6th bad login for same ID locks (429)	exp=429	got=429	PASS	{"code":"LOCKED","message":"Too many failed attempts. Try again in 14 minute(s)."} 
+A52	Throttle	Correct password still refused while locked	exp=429	got=429	PASS	{"code":"LOCKED","message":"Too many failed attempts. Try again in 14 minute(s)."} 
+A53	Throttle	X-Forwarded-For spoof does not bypass lockout (trust-proxy=false)	exp=429	got=429	PASS	{"code":"LOCKED","message":"Too many failed attempts. Try again in 14 minute(s)."} 
+A54	Throttle	Email login locks after repeated failures (HR/admin)	exp=429	got=429	PASS	{"code":"LOCKED","message":"Too many failed attempts. Try again in 14 minute(s)."} 
+A55	Throttle	Face-punch: 22 unrecognised attempts end in 429 (limit 20/5min)	exp=429	got=429	PASS	     20 200       2 429  
+A56	Input	Face punch with empty body does not 500	exp=400|422|429	got=429	PASS	{"code":"LOCKED","message":"Too many unrecognised faces from this network. Try again in a few minute
+A57	Input	Face punch with empty descriptor does not 500	exp=400|422|429	got=429	PASS	{"code":"LOCKED","message":"Too many unrecognised faces from this network. Try again in a few minute
+A58	Auth	Kiosk punch without pairing token	exp=400|401|403	got=401	PASS	{"code":"KIOSK_AUTH","message":"Kiosk token required"} 
+A59	Auth	App pairing with bogus code	exp=400|401|403|404|429	got=400	PASS	{"code":"BAD_CODE","message":"Invalid or expired code"} 
+A60	Input	Face request with invalid photo	exp=400|422|429	got=400	PASS	{"code":"BAD_REQUEST","message":"The photo could not be read"} 
+A61	Headers	Response header present: x-content-type-options	exp=200	got=200	PASS	x-content-type-options 
+A62	Headers	Response header present: x-frame-options	exp=200	got=200	PASS	x-frame-options 
+A63	Headers	Response header present: cache-control	exp=200	got=200	PASS	cache-control 
+A64	Headers	Response header present: strict-transport-security	exp=200	got=200	PASS	strict-transport-security 
+A65	Headers	Response header present: content-security-policy	exp=200	got=200	PASS	content-security-policy 
+A66	Headers	Response header present: referrer-policy	exp=200	got=200	PASS	referrer-policy 
+A67	Headers	No server/version banner	exp=200	got=200	PASS	 

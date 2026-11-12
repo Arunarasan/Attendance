@@ -1,0 +1,16 @@
+== setup
+== 12 parallel clock-in requests for one employee (expect exactly 1 open session)
+      1 200
+     11 409
+sessions stored: 1
+== 8 parallel payroll generate for same new month (expect 1x200, rest 409, 1 run)
+      1 200
+      7 409
+runs for 2026-09: 1
+== 8 parallel duplicate leave requests, same dates (expect 1 accepted)
+      1 200
+      7 409
+leave rows stored for that day: 1
+== 8 parallel duplicate employee code create (expect 1 created)
+      1 200
+      7 409

@@ -1,0 +1,67 @@
+F01	Auth	Admin login	exp=200	got=200	PASS	{"token":"<token-redacted>
+F02	Auth	Admin wrong password	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong email or password"} 
+F03	Auth	HR endpoint without token	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+F04	Auth	HR endpoint with forged token	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
+F05	Employees	Create hourly employee	exp=200|201	got=200	PASS	{"id":2,"employeeCode":"E001","name":"Asha Hourly","email":"e001@test.local","phone":"9876543210","role":"EMPL
+F06	Employees	Create monthly employee	exp=200|201	got=200	PASS	{"id":3,"employeeCode":"E002","name":"Ravi Monthly","email":"e002@test.local","phone":"9876500002","role":"EMP
+F07	Employees	Duplicate employee code rejected	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"Employee code or email already exists"} 
+F08	Employees	Duplicate phone (same last 10 digits) rejected	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"That phone number already belongs to Asha Hourly"} 
+F09	Employees	Missing name rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Name is required"} 
+F10	Employees	Invalid role rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"role must be one of [EMPLOYEE, ADMIN, HR]"} 
+F11	Employees	Negative hourly rate rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Hourly rate cannot be negative"} 
+F12	Employees	Weak 1-char password rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Password must be at least 8 characters"} 
+F13	Employees	HTML in name handled without crash	exp=200|201|400	got=200	PASS	{"id":5,"employeeCode":"E008","name":"<script>alert(1)</script>","email":"e008@test.local","phone":"9000000008
+F14	Employees	List employees	exp=200	got=200	PASS	[{"id":5,"employeeCode":"E008","name":"<script>alert(1)</script>","email":"e008@test.local","phone":"900000000
+F15	Employees	Update employee	exp=200	got=200	PASS	{"id":3,"employeeCode":"E002","name":"Ravi Updated","email":"e002@test.local","phone":"9876500002","role":"EMP
+F16	Employees	Update nonexistent employee	exp=404|400	got=404	PASS	{"code":"NOT_FOUND","message":"Employee not found"} 
+F17	Auth	Employee login (code+phone+password)	exp=200	got=200	PASS	{"token":"<token-redacted>
+F18	Auth	Employee login, phone with +91 and spaces	exp=200	got=200	PASS	{"token":"<token-redacted>
+F19	Auth	Wrong phone rejected	exp=401	got=200	FAIL	{"token":"<token-redacted>
+F20	Auth	Wrong password rejected	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong employee ID / phone number or password"} 
+F21	Auth	Empty employee login body	exp=400|401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong employee ID / phone number or password"} 
+F22	Authz	Employee blocked from HR employee list	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:09:55.682+00:00","status":403,"error":"Forbidden","path":"/api/hr/employees"} 
+F23	Authz	Employee blocked from payroll generate	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:09:56.032+00:00","status":403,"error":"Forbidden","path":"/api/hr/payroll/generate
+F24	Authz	Employee reads own profile	exp=200	got=200	PASS	{"id":2,"employeeCode":"E001","name":"Asha Hourly","email":"e001@test.local","phone":"9876543210","role":"EMPL
+F25	Authz	Employee blocked from other employee leave balances	exp=403	got=403	PASS	{"timestamp":"2026-11-11T06:09:56.854+00:00","status":403,"error":"Forbidden","path":"/api/hr/leave/balances/3
+F26	Punch	Today status before punch	exp=200	got=200	PASS	{"sessions":[],"onBreak":false,"days":[],"open":{},"isOpen":false} 
+F27	Punch	Clock-out with no open session rejected	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"Not clocked in"} 
+F28	Punch	Clock-in	exp=200|409|400	got=422	FAIL	{"issues":[{"code":"FACE_NOT_ENROLLED","message":"No face enrolled"}],"code":"NEEDS_CONFIRMATION","message":"A
+F29	Punch	Second clock-in while open rejected	exp=400|409	got=422	FAIL	{"issues":[{"code":"FACE_NOT_ENROLLED","message":"No face enrolled"}],"code":"NEEDS_CONFIRMATION","message":"A
+F30	Punch	Unknown punch action rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Unknown action"} 
+F31	Punch	Clock-out	exp=200|400|409	got=409	PASS	{"code":"CONFLICT","message":"Not clocked in"} 
+F32	Punch	Own timesheet	exp=200|400	got=400	PASS	{"timestamp":"2026-11-11T06:10:00.517+00:00","status":400,"error":"Bad Request","path":"/api/me/timesheet"} 
+F33	Holidays	Create holiday	exp=200|201	got=200	PASS	{"id":1,"holidayDate":"2026-11-14","name":"Test Holiday","paid":true} 
+F34	Holidays	Duplicate holiday date	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"There is already a holiday on 2026-11-14"} 
+F35	Holidays	Holiday without date rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"date is required"} 
+F36	Holidays	Delete holiday	exp=200|204	got=200	PASS	{"status":"DELETED"} 
+F37	Settings	Zero standard hours rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Standard daily hours must be between 1 and 24"} 
+F38	Settings	Invalid weekday rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Unknown day: FUNDAY"} 
+F39	Settings	Valid pay settings saved	exp=200	got=200	PASS	{"overtimeMultiplier":1.50,"standardDailyHours":8,"defaultMode":"MONTHLY","weeklyOffDays":["SUNDAY"]} 
+F40	Networks	Invalid CIDR rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Invalid IP/CIDR, for example 203.0.113.7 or 203.0.113.0/24"} 
+F41	Networks	Valid CIDR saved	exp=200|201	got=200	PASS	{"status":"CREATED"} 
+F42	Locations	Latitude out of range rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"latitude must be between -90 and 90"} 
+F43	Locations	Valid location saved	exp=200|201	got=200	PASS	{"status":"CREATED"} 
+F44	Corrections	HR records missed day (8h)	exp=200|201	got=200	PASS	{"id":1,"employeeId":2,"workDate":"2026-10-05","clockIn":"2026-10-05T09:00:00","clockOut":"2026-10-05T17:00:00
+F45	Corrections	Check-out before check-in rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Check-out must be after check-in"} 
+F46	Corrections	Future-date correction rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"Times cannot be in the future"} 
+F47	Corrections	HR records 10h day (2h overtime)	exp=200|201	got=200	PASS	{"id":2,"employeeId":3,"workDate":"2026-10-05","clockIn":"2026-10-05T09:00:00","clockOut":"2026-10-05T19:00:00
+F48	Register	Attendance register	exp=200|400	got=200	PASS	[{"employeeId":5,"employeeName":"<script>alert(1)</script>","employeeCode":"E008","checkIn":null,"checkOut":nu
+F49	Leave	Leave types seeded	exp=200	got=200	PASS	[{"id":1,"code":"CL","name":"Casual leave","paid":true,"annualQuota":12.0,"active":true},{"id":2,"code":"SL","
+F50	Leave	HR records leave	exp=200|201	got=200	PASS	{"id":1,"status":"APPROVED"} 
+F51	Leave	Overlapping leave rejected	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"That overlaps another leave request"} 
+F52	Leave	End before start rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"The end date must not be before the start date"} 
+F53	Leave	Employee requests leave	exp=200|201	got=200	PASS	{"id":2,"status":"PENDING"} 
+F54	Leave	Employee cancels own pending leave	exp=200|204	got=200	PASS	{"status":"CANCELLED"} 
+F55	Payroll	Preview October	exp=200	got=200	PASS	[{"employeeId":5,"employeeName":"<script>alert(1)</script>","mode":"MONTHLY","regularHours":0.00,"overtimeHour
+F56	Payroll	Malformed period rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"period must look like 2026-10"} 
+F57	Payroll	Generate October run	exp=200|201	got=200	PASS	{"runId":1} 
+F58	Payroll	Duplicate run for same month rejected	exp=400|409	got=409	PASS	{"code":"CONFLICT","message":"Payroll for 2026-10 was already generated"} 
+F59	Payroll	Run payslips listed	exp=200	got=400	FAIL	<!doctype html><html lang="en"><head><title>HTTP Status 400 – Bad Request</title><style type="text/css">body
+F60	Payroll	Adjust payslip	exp=200|201	got=400	FAIL	<!doctype html><html lang="en"><head><title>HTTP Status 400 – Bad Request</title><style type="text/css">body
+F61	Payroll	Employee sees own payslips	exp=200	got=200	PASS	[{"id":3,"runId":1,"employeeId":2,"period":"2026-10","regularHours":8.00,"overtimeHours":0.00,"gross":0.00,"ad
+F62	Auth	Password change with wrong current rejected	exp=400	got=400	PASS	{"code":"BAD_PASSWORD","message":"Current password is wrong"} 
+F63	Auth	Weak new password rejected	exp=400	got=400	PASS	{"code":"BAD_REQUEST","message":"New password must be at least 8 characters"} 
+F64	Auth	Password change	exp=200	got=200	PASS	{"status":"CHANGED"} 
+F65	Auth	Old password no longer works	exp=401	got=401	PASS	{"code":"BAD_LOGIN","message":"Wrong employee ID / phone number or password"} 
+F66	Employees	Deactivate employee	exp=200	got=200	PASS	{"id":2,"employeeCode":"E001","name":"Asha Hourly","email":"e001@test.local","phone":"9876543210","role":"EMPL
+F67	Auth	Deactivated employee token rejected	exp=401	got=401	PASS	{"code":"UNAUTHORIZED","message":"Sign in required"} 
