@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { cloneElement, FormEvent, isValidElement, ReactElement, useEffect, useId, useMemo, useState } from 'react'
 import { del, fmtDateTime, get, post, put, today } from '../lib/api'
 import { LANGS, setLang, useT } from '../lib/i18n'
 import { IAlert, ICal, ICheckCircle, IClock, IWallet, IUsers } from '../components/icons'
@@ -32,9 +32,10 @@ function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; labe
   return <button type="button" className={`lh-tg${on ? ' on' : ''}`} onClick={onClick}><i />{label}</button>
 }
 function Num({ label, value, onChange, unit, min = 0, max, step = 1, hint }: { label: string; value: number; onChange: (v: number) => void; unit?: string; min?: number; max?: number; step?: number; hint?: string }) {
+  const id = useId()
   return (
-    <div className="pa-num"><label>{label}</label>
-      <div><input type="number" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} />{unit && <em>{unit}</em>}</div>
+    <div className="pa-num"><label htmlFor={id}>{label}</label>
+      <div><input id={id} type="number" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} />{unit && <em>{unit}</em>}</div>
       {hint && <small>{hint}</small>}</div>
   )
 }
@@ -129,8 +130,8 @@ export function PaySettings() {
           </Card>
           <Card title="Wages & overtime" hint="How a month is divided into days, and how overtime is paid.">
             <div className="pa-grid">
-              <div className="pa-num"><label>Monthly pay is divided by</label>
-                <select value={pol.workingDaysBasis} onChange={e => P({ workingDaysBasis: e.target.value })}>
+              <div className="pa-num"><label htmlFor="payadmin-f1">Monthly pay is divided by</label>
+                <select id="payadmin-f1" value={pol.workingDaysBasis} onChange={e => P({ workingDaysBasis: e.target.value })}>
                   <option value="SCHEDULED">Working days (month minus weekly offs)</option><option value="CALENDAR">Calendar days in the month</option>
                   <option value="FIXED_26">Fixed 26 days</option><option value="FIXED_30">Fixed 30 days</option></select></div>
               <Num label="Overtime pays" value={st.overtimeMultiplier} min={1} max={5} step={0.05} onChange={v => setSt({ ...st, overtimeMultiplier: v })} unit="× normal rate" />
@@ -155,7 +156,7 @@ export function PaySettings() {
             <div className="pa-grid">
               <Num label="Grace on the day's hours" value={pol.graceMinutes} max={120} onChange={v => P({ graceMinutes: v })} unit="min" />
               <Num label="Half day needs at least" value={pol.halfDayMinMinutes} min={30} max={720} onChange={v => P({ halfDayMinMinutes: v })} unit="min" />
-              <div className="pa-num"><label>Shift starts at</label><div><input type="time" value={pol.shiftStart} onChange={e => P({ shiftStart: e.target.value })} /></div></div>
+              <div className="pa-num"><label htmlFor="pa-shift-start">Shift starts at</label><div><input id="pa-shift-start" type="time" value={pol.shiftStart} onChange={e => P({ shiftStart: e.target.value })} /></div></div>
               <Num label="Late grace" value={pol.lateGraceMinutes} max={120} onChange={v => P({ lateGraceMinutes: v })} unit="min" />
               <Num label="Late arrivals that cost a half day" value={pol.lateCountForHalfDay} max={31} onChange={v => P({ lateCountForHalfDay: v })} unit="lates" hint="0 = lateness never costs pay." />
             </div>
@@ -252,10 +253,11 @@ export function AppInfo() {
 type Gen = { companyName: string; legalName: string; companyAddress: string; addressLine2: string; city: string; state: string; pincode: string; companyPhone: string; companyEmail: string; website: string; gstin: string; pan: string; defaultLanguage: string; geoGraceMeters: number; maxAccuracyMarginMeters: number; kioskMinGapSeconds: number; phoneFaceRequired: boolean; onCheckFail: 'ASK' | 'BLOCK' | 'FLAG' }
 
 function Field({ label, children, hint, error, required, full }: { label: string; children: React.ReactNode; hint?: string; error?: string; required?: boolean; full?: boolean }) {
+  const id = useId()
   return (
     <div className={`gf-f${full ? ' full' : ''}${error ? ' bad' : ''}`}>
-      <label>{label}{required && <span className="gf-req"> *</span>}</label>
-      {children}
+      <label htmlFor={id}>{label}{required && <span className="gf-req"> *</span>}</label>
+      {isValidElement(children) ? cloneElement(children as ReactElement<{ id?: string }>, { id }) : children}
       {error ? <small className="gf-err">{error}</small> : hint ? <small>{hint}</small> : null}
     </div>
   )
@@ -394,12 +396,12 @@ function Deductions() {
       right={<button className="lh-add" onClick={() => setOpen(o => !o)}>{open ? 'Close' : '+ Add deduction'}</button>}>
       {open && <form className="lh-form lc-add" onSubmit={add}>
         <div className="grid">
-          <div><label>Name</label><input value={r.name} onChange={e => setR({ ...r, name: e.target.value })} required /></div>
-          <div><label>Kind</label><select value={r.kind} onChange={e => setR({ ...r, kind: e.target.value })}><option value="PERCENT">Percent of gross</option><option value="FIXED">Fixed amount</option></select></div>
-          <div><label>{r.kind === 'PERCENT' ? 'Percent' : 'Amount'}</label><input type="number" step="0.01" min="0" value={r.amount} onChange={e => setR({ ...r, amount: e.target.value })} required /></div>
-          <div><label>Wage cap (optional)</label><input type="number" min="0" value={r.wageCap} onChange={e => setR({ ...r, wageCap: e.target.value })} /></div>
-          <div><label>Only if gross at least</label><input type="number" min="0" value={r.minGross} onChange={e => setR({ ...r, minGross: e.target.value })} /></div>
-          <div><label>Only if gross at most</label><input type="number" min="0" value={r.maxGross} onChange={e => setR({ ...r, maxGross: e.target.value })} /></div>
+          <div><label htmlFor="payadmin-f2">Name</label><input id="payadmin-f2" value={r.name} onChange={e => setR({ ...r, name: e.target.value })} required /></div>
+          <div><label htmlFor="payadmin-f3">Kind</label><select id="payadmin-f3" value={r.kind} onChange={e => setR({ ...r, kind: e.target.value })}><option value="PERCENT">Percent of gross</option><option value="FIXED">Fixed amount</option></select></div>
+          <div><label htmlFor="pa-ded-amount">{r.kind === 'PERCENT' ? 'Percent' : 'Amount'}</label><input id="pa-ded-amount" type="number" step="0.01" min="0" value={r.amount} onChange={e => setR({ ...r, amount: e.target.value })} required /></div>
+          <div><label htmlFor="payadmin-f4">Wage cap (optional)</label><input id="payadmin-f4" type="number" min="0" value={r.wageCap} onChange={e => setR({ ...r, wageCap: e.target.value })} /></div>
+          <div><label htmlFor="payadmin-f5">Only if gross at least</label><input id="payadmin-f5" type="number" min="0" value={r.minGross} onChange={e => setR({ ...r, minGross: e.target.value })} /></div>
+          <div><label htmlFor="payadmin-f6">Only if gross at most</label><input id="payadmin-f6" type="number" min="0" value={r.maxGross} onChange={e => setR({ ...r, maxGross: e.target.value })} /></div>
         </div>{err && <div className="err">{err}</div>}<p style={{ marginBottom: 0 }}><button className="btn">Add deduction</button></p></form>}
       <div className="lh-types">
         {rules.data?.map(x => (
@@ -432,6 +434,8 @@ export function Payroll() {
   }
   async function gen() {
     setErr('')
+    const warned = (prev ?? []).filter((p: any) => p.warning).length
+    if (warned > 0 && !window.confirm(`${warned} employee(s) have a pay warning (pay of 0 for someone who worked). Generate anyway?`)) return
     try { const r = await post('/api/hr/payroll/generate', { period, mode }); setRun(r.runId); setPrev(null); reload() } catch (e: any) { setErr(e.message) }
   }
   const adjust = async (id: number) => {
@@ -448,8 +452,8 @@ export function Payroll() {
     </div>
     <Card title="Generate payroll" hint="Pay comes from approved attendance hours, plus a standard day for each paid holiday and paid leave day. Resolve “To approve” and “Leave” first. Check the preview, then generate.">
       <form className="pa-gen" onSubmit={e => { e.preventDefault(); preview() }}>
-        <input type="month" value={period} onChange={e => { setPeriod(e.target.value); setPrev(null) }} />
-        <select value={mode} onChange={e => { setMode(e.target.value); setPrev(null) }}><option value="HOURLY">Hourly (default)</option><option value="MONTHLY">Monthly (default)</option></select>
+        <input type="month" aria-label="Payroll month" value={period} onChange={e => { setPeriod(e.target.value); setPrev(null) }} />
+        <select aria-label="Pay mode" value={mode} onChange={e => { setMode(e.target.value); setPrev(null) }}><option value="HOURLY">Hourly (default)</option><option value="MONTHLY">Monthly (default)</option></select>
         <button className="lh-add">Preview</button>
         <button type="button" className="btn" onClick={gen} disabled={!prev}>Generate</button>
       </form>
@@ -458,11 +462,12 @@ export function Payroll() {
     </Card>
 
     {rows && <Card title={prev ? `Preview for ${period}` : 'Payslips'} hint={prev ? 'Nothing is saved yet. Generate to create the payslips.' : undefined}>
+      {prev && rows.some((p: any) => p.warning) && <div className="err" role="alert">Some employees would be paid 0 for hours they worked. See the red notes below before you generate.</div>}
       <div className="scroll"><table className="pa-table">
         <thead><tr><th>Employee</th><th>Hours</th><th>OT / Extra</th><th>Allow.</th><th>Loss of pay / Short</th><th>Bonus</th><th>Gross</th><th>Deduct.</th>{!prev && <th>Adjust</th>}<th>Net</th><th>Score</th></tr></thead>
         <tbody>{rows.map(p => (
           <tr key={p.id ?? p.employeeId}>
-            <td><b>{p.employeeName}</b><div className="muted">{(p.payMode ?? p.mode ?? '').toLowerCase()}</div></td>
+            <td><b>{p.employeeName}</b><div className="muted">{(p.payMode ?? p.mode ?? '').toLowerCase()}</div>{p.warning && <div className="err" role="alert" style={{ fontSize: 12, maxWidth: 260 }}>{p.warning}</div>}</td>
             <td>{p.regularHours} h{Number(p.creditHours) > 0 && <div className="muted">+{p.creditHours} h leave/holiday</div>}{p.shortfallMethod === 'HOURS' && <div className="muted">of {p.requiredHours} h</div>}</td>
             <td>{p.shortfallMethod === 'HOURS' ? (Number(p.extraHours) > 0 ? <span className="pa-xtra">+{p.extraHours} h<div>+{money(p.extraAmount)}</div></span> : '—') : `${p.overtimeHours} h`}</td>
             <td>{money(p.allowances)}</td>
@@ -513,8 +518,8 @@ export function LopReview() {
   return (<>
     {pol && !pol.lopEnabled && <div className="lc-state"><IAlert size={20} /><span><b>Loss of pay rules are off.</b> This page shows what they would do; payroll ignores it until you turn the rules on in Settings.</span></div>}
     <Card title="Loss of pay review" hint="Day by day, what each employee's attendance means for pay. Change a day if there is a good reason, and it is recorded.">
-      <div className="pa-gen"><select value={emp} onChange={e => setEmp(e.target.value)}><option value="">Choose an employee…</option>{emps?.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
-        <input type="month" value={month} onChange={e => setMonth(e.target.value)} /></div>
+      <div className="pa-gen"><select aria-label="Employee" value={emp} onChange={e => setEmp(e.target.value)}><option value="">Choose an employee…</option>{emps?.filter(e => e.active).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <input type="month" aria-label="Month" value={month} onChange={e => setMonth(e.target.value)} /></div>
       {emp && data?.days && <div className="lh-stats" style={{ marginTop: 14, marginBottom: 6 }}>
         <div className="lh-stat y"><span><IClock size={26} /></span><b>{Number(data.lopDays)}</b><small>Loss of pay days{Number(data.lateLop) > 0 && ` (${data.lateLop} from ${data.lateDays} late arrivals)`}</small></div>
         <div className="lh-stat g"><span><ICal size={26} /></span><b>{days.filter(d => ['FULL', 'HALF', 'SHORT'].includes(d.status)).length}</b><small>Days worked</small></div>
@@ -537,7 +542,7 @@ export function LopReview() {
       <div className="modal small"><h2>Change {new Date(edit.date + 'T00:00').toLocaleDateString([], { day: 'numeric', month: 'short' })}</h2>
         <label>Loss of pay for this day</label>
         <div className="pm-seg" style={{ display: 'flex', gap: 8 }}>{[0, 0.5, 1].map(v => <button key={v} type="button" className={`lc-q${edit.lop === v ? ' on' : ''}`} onClick={() => setEdit({ ...edit, lop: v })}>{v === 0 ? 'None' : v === 0.5 ? 'Half day' : 'Full day'}</button>)}</div>
-        <label>Reason (required)</label><input value={edit.reason} onChange={e => setEdit({ ...edit, reason: e.target.value })} placeholder="e.g. System was down, approved by manager" />
+        <label htmlFor="payadmin-f7">Reason (required)</label><input id="payadmin-f7" value={edit.reason} onChange={e => setEdit({ ...edit, reason: e.target.value })} placeholder="e.g. System was down, approved by manager" />
         {err && <div className="err">{err}</div>}
         <div className="actions"><button className="btn" onClick={() => saveOv()}>Save</button><button className="btn ghost" onClick={() => saveOv(true)}>Use the automatic result</button><button className="btn ghost" onClick={() => setEdit(null)}>Cancel</button></div>
       </div></div>}

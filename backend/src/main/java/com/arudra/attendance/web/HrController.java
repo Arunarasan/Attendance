@@ -55,15 +55,42 @@ public class HrController {
     }
 
     // employees
-    @GetMapping("/employees") public List<M.EmpRow> employees() { return employees.listRows(); }
-    @PostMapping("/employees") public M.EmpView createEmployee(@RequestBody EmployeeService.Input in) { return employees.create(in); }
-    @PutMapping("/employees/{id}") public M.EmpView updateEmployee(@AuthenticationPrincipal Actor a, @PathVariable long id, @RequestBody EmployeeService.Input in) { return employees.update(id, in, a.employeeId()); }
+    @GetMapping("/employees") public List<M.EmpRow> employees(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(employees.listRows(), limit, offset, res); }
+    /** Admin accounts (creating one, promoting to it, editing or resetting one, pairing a phone to one) are for admins only. */
+    private static void adminOnly(Actor a, String role) {
+        if ("ADMIN".equals(role) && !"ADMIN".equals(a.role())) {
+            throw new ApiException(org.springframework.http.HttpStatus.FORBIDDEN, "FORBIDDEN", "Only an admin can create or change admin accounts");
+        }
+    }
+
+    @PostMapping("/employees")
+    public M.EmpView createEmployee(@AuthenticationPrincipal Actor a, @RequestBody EmployeeService.Input in) {
+        adminOnly(a, in.role());
+        return employees.create(in);
+    }
+
+    @PutMapping("/employees/{id}")
+    public M.EmpView updateEmployee(@AuthenticationPrincipal Actor a, @PathVariable long id, @RequestBody EmployeeService.Input in) {
+        adminOnly(a, in.role());
+        adminOnly(a, employees.get(id).role());
+        return employees.update(id, in, a.employeeId());
+    }
 
     @PostMapping("/employees/{id}/app-code")
-    public Map<String, String> appCode(@PathVariable long id) { return Map.of("code", pairing.createCode(id)); }
+    public Map<String, String> appCode(@AuthenticationPrincipal Actor a, @PathVariable long id) {
+        adminOnly(a, employees.get(id).role());
+        return Map.of("code", pairing.createCode(id));
+    }
 
     @PostMapping("/employees/{id}/app-revoke")
     public Map<String, String> appRevoke(@PathVariable long id) { pairing.revokeForEmployee(id); return Map.of("status", "REVOKED"); }
+
+    /** Removes all face data (templates and photos) for one person. Admin accounts only by admins, like every other change to them. */
+    @DeleteMapping("/employees/{id}/face")
+    public Map<String, Object> deleteFace(@AuthenticationPrincipal Actor a, @PathVariable long id) {
+        adminOnly(a, employees.get(id).role());
+        return Map.of("status", "DELETED", "rowsRemoved", kiosks.deleteFace(id));
+    }
 
     @PostMapping("/employees/{id}/face")
     public Map<String, String> enrolFace(@PathVariable long id, @RequestBody FaceBody b) { kiosks.enrolFace(id, b.descriptors()); return Map.of("status", "ENROLLED"); }
@@ -76,9 +103,10 @@ public class HrController {
 
     @PostMapping("/attendance/locations")
     public Map<String, String> addLocation(@RequestBody LocationBody b) {
-        if (b.name() == null || b.latitude() == null || b.longitude() == null || b.radiusMeters() == null || b.radiusMeters() < 10) {
+        if (b.name() == null || b.name().isBlank() || b.latitude() == null || b.longitude() == null || b.radiusMeters() == null || b.radiusMeters() < 10) {
             throw ApiException.bad("name, latitude, longitude and radiusMeters (>= 10) are required");
         }
+        checkLocation(b);
         db.sql("INSERT INTO attendance_locations (name, latitude, longitude, radius_meters) VALUES (?,?,?,?)")
                 .param(b.name()).param(b.latitude()).param(b.longitude()).param(b.radiusMeters()).update();
         return Map.of("status", "CREATED");
@@ -86,10 +114,19 @@ public class HrController {
 
     @PutMapping("/attendance/locations/{id}")
     public Map<String, String> updateLocation(@PathVariable long id, @RequestBody LocationBody b) {
+        checkLocation(b);
         int n = db.sql("UPDATE attendance_locations SET name = COALESCE(?, name), latitude = COALESCE(?, latitude), longitude = COALESCE(?, longitude), radius_meters = COALESCE(?, radius_meters), active = COALESCE(?, active) WHERE id = ?")
                 .param(b.name()).param(b.latitude()).param(b.longitude()).param(b.radiusMeters()).param(b.active()).param(id).update();
         if (n == 0) throw ApiException.notFound("Location");
         return Map.of("status", "UPDATED");
+    }
+
+    /** Ranges for whatever is present (an update may send only some fields). */
+    private static void checkLocation(LocationBody b) {
+        if (b.name() != null && b.name().trim().length() > 120) throw ApiException.bad("name is too long (at most 120 characters)");
+        if (b.latitude() != null && !(b.latitude() >= -90 && b.latitude() <= 90)) throw ApiException.bad("latitude must be between -90 and 90");
+        if (b.longitude() != null && !(b.longitude() >= -180 && b.longitude() <= 180)) throw ApiException.bad("longitude must be between -180 and 180");
+        if (b.radiusMeters() != null && (b.radiusMeters() < 10 || b.radiusMeters() > 100_000)) throw ApiException.bad("radiusMeters must be between 10 and 100000");
     }
 
     // office networks (WiFi verification)
@@ -106,7 +143,7 @@ public class HrController {
     @DeleteMapping("/networks/{id}") public Map<String, String> deleteNetwork(@PathVariable long id) { networks.delete(id); return Map.of("status", "DELETED"); }
 
     // photo approval requests (face did not match)
-    @GetMapping("/face-requests") public List<M.FaceRequestView> faceRequests() { return faceRequests.pending(); }
+    @GetMapping("/face-requests") public List<M.FaceRequestView> faceRequests(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(faceRequests.pending(), limit, offset, res); }
 
     @GetMapping(value = "/face-requests/{id}/photo", produces = org.springframework.http.MediaType.IMAGE_JPEG_VALUE)
     public byte[] faceRequestPhoto(@PathVariable long id) { return faceRequests.photo(id); }
@@ -118,8 +155,8 @@ public class HrController {
     public Map<String, String> rejectFaceRequest(@AuthenticationPrincipal Actor a, @PathVariable long id) { faceRequests.reject(id, a.employeeId()); return Map.of("status", "REJECTED"); }
 
     // approvals
-    @GetMapping("/attendance/pending") public List<M.PendingSession> pending() { return time.pending(); }
-    @GetMapping("/attendance/pending/count") public Map<String, Integer> pendingCount() { return Map.of("count", time.pending().size()); }
+    @GetMapping("/attendance/pending") public List<M.PendingSession> pending(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(time.pending(), limit, offset, res); }
+    @GetMapping("/attendance/pending/count") public Map<String, Integer> pendingCount() { return Map.of("count", time.pendingCount()); }
 
     @PostMapping("/attendance/sessions/{id}/approve")
     public Map<String, String> approve(@AuthenticationPrincipal Actor a, @PathVariable long id) { time.approve(id, a.employeeId()); return Map.of("status", "APPROVED"); }
@@ -183,8 +220,8 @@ public class HrController {
     public Map<String, Object> generate(@AuthenticationPrincipal Actor a, @RequestBody PayrollBody b) {
         return Map.of("runId", payroll.generate(b.period(), b.mode(), a.employeeId()));
     }
-    @GetMapping("/payroll/runs") public List<M.Run> runs() { return payroll.runs(); }
-    @GetMapping("/payroll/runs/{id}/payslips") public List<M.PayslipView> payslips(@PathVariable long id) { return payroll.payslips(id); }
+    @GetMapping("/payroll/runs") public List<M.Run> runs(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.runs(), limit, offset, res); }
+    @GetMapping("/payroll/runs/{id}/payslips") public List<M.PayslipView> payslips(@PathVariable long id, @RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.payslips(id), limit, offset, res); }
     @PostMapping("/payroll/payslips/{id}/adjust")
     public Map<String, String> adjust(@PathVariable long id, @RequestBody AdjustBody b) {
         if (b.amount() == null) throw ApiException.bad("amount is required");

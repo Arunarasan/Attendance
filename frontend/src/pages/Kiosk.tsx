@@ -125,8 +125,8 @@ export default function Kiosk() {
         <div className="muted" style={{ fontSize: 20 }}>{hint}</div>
       ) : (
         <form onSubmit={punchId} style={{ width: 'min(360px, 100%)' }}>
-          <label>Employee ID or phone</label>
-          <input value={id} onChange={e => setId(e.target.value)} autoFocus required style={{ fontSize: 22, textAlign: 'center' }} />
+          <label htmlFor="kiosk-f1">Employee ID or phone</label>
+          <input id="kiosk-f1" value={id} onChange={e => setId(e.target.value)} autoFocus required style={{ fontSize: 22, textAlign: 'center' }} />
           <p><button className="btn big">Punch in / out</button></p>
         </form>
       )}

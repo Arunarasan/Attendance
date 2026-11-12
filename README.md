@@ -3,7 +3,7 @@
 Hours-based attendance with soft verification, an HR approval queue, a shared office kiosk, a pair-once personal phone app, and payroll that derives from approved hours.
 
 ```
-backend/      Spring Boot 3.3, Java 17, Flyway, JDBC (H2 for dev, MySQL for production)
+backend/      Spring Boot 3.5, Java 17, Flyway, JDBC (H2 for dev, MySQL for production)
 frontend/     React + TypeScript (Vite): employee portal, HR console, kiosk, app pairing
 android-app/  Kotlin WebView shell with a hardware-Keystore signing bridge
 ```
@@ -17,11 +17,15 @@ cd frontend && npm install && npm run dev  # http://localhost:5173, proxies /api
 
 First sign-in: `admin@example.com` / `ChangeMe123!`. **Change it** (HR console, Employees, or set `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD` before the first start).
 
-MySQL: `SPRING_PROFILES_ACTIVE=mysql DB_URL=jdbc:mysql://host:3306/attendance DB_USER=... DB_PASSWORD=... APP_JWT_SECRET=<32+ random chars> mvn spring-boot:run`. The Flyway script is plain MySQL-compatible SQL but has only been run on H2 so far.
+**Production: set `APP_JWT_SECRET` to 32+ random characters.** There is no built-in default. If it is unset the app signs sessions with a random secret generated at startup (a warning is logged), so everyone is signed out on every restart and several instances cannot share sessions. A secret shorter than 32 characters, or the old public default, makes the app refuse to start.
+
+**MySQL** (production): `SPRING_PROFILES_ACTIVE=mysql DB_URL=jdbc:mysql://host:3306/attendance DB_USER=... DB_PASSWORD=... APP_JWT_SECRET=<32+ random chars> mvn spring-boot:run`. All 16 Flyway migrations, the test scripts and the concurrency checks have been run on MySQL 8.4 (see `production-audit/`). The few migrations that differ per database live in `db/vendor/h2` and `db/vendor/mysql` (same version number in both); everything else is in `db/migration`.
+
+Other settings (environment variables): `APP_TRUST_PROXY=true` and `APP_TRUSTED_PROXY_HOPS=1` when behind a reverse proxy you control (the client address is the entry that many places from the right of `X-Forwarded-For`); `DB_POOL_SIZE` (default 20) and `DB_CONNECT_TIMEOUT_MS` (default 5000); `APP_ENFORCE_PASSWORD_CHANGE` (default true: an admin or HR account still using the default password must change it before anything else works). Health check for your host or load balancer: `GET /api/public/health` (200 when the database answers, 503 otherwise). List endpoints return at most 1000 rows unless you pass `?limit=&offset=` (max 5000); the `X-Total-Count` header carries the full count. Backup and restore: see [docs/operations.md](docs/operations.md).
 
 Face models (about 7 MB) are served from `frontend/public/models` and loaded only on the kiosk and enrolment screens.
 
-Tests: `cd backend && mvn test` (57 tests: payroll maths, network matching, and end-to-end HTTP flows through every path below).
+Tests: `cd backend && mvn test` (140 tests: payroll maths, network matching, and end-to-end HTTP flows through every path below).
 
 ## How it works
 
@@ -52,7 +56,7 @@ Rules worth knowing:
 - **Low light and accuracy.** The camera is asked for continuous exposure; dark frames are brightened before detection (`frontend/src/lib/enhance.ts`) and well-lit frames are untouched, so speed is the same in normal light. A punch averages the descriptors of up to five frontal, confident frames rather than trusting one. In a dark room the whole screen turns white as a fill light. Enrolment takes 8 varied shots. After every clean, confident punch the server may remember a new look (other light, angle) as an extra template, up to 14 per person, replacing only the oldest learned one; flagged or weak punches never teach it. Turn that off with `APP_FACE_LEARN=0`. HR re-enrolling replaces all templates. If recognition is still weak, the next step is a stronger model (ArcFace or MobileFaceNet), which needs a model download and re-enrolment of everyone.
 - **Because nothing proves which phone it is, the other checks do the work:** location (geo-fence) and the office network (public IP, plus the access point BSSID in the Android app). A failed check, a weak face match, or no location **flags the punch for HR**; it is never blocked. Unrecognised faces are limited to 20 per 5 minutes per IP.
 - **If the face will not match.** After three unrecognised scans in a row the Face punch screen offers a request: the employee types their employee ID and phone number, takes a photo with the phone camera, chooses clocking in or out, and sends it. Nothing is clocked yet. HR sees the photo, the time and the location/WiFi result under **Photo requests**, and Approve clocks them in or out at the time they asked (Reject discards it). Wrong ID/phone attempts lock that ID for 15 minutes; at most 3 requests can wait per employee; photos must be JPEG under 300 KB and are deleted 30 days after HR decides.
-- **Sign-in is only for the timesheet, corrections and payslips.** Employees use employee ID + phone number + password (all three must match; the error never says which was wrong; phones are compared by their last 10 digits and are unique). HR and admin can also use email + password. Five failed attempts lock that ID for 15 minutes (in memory, per backend instance).
+- **Sign-in is only for the timesheet, corrections and payslips.** Employees use their employee ID **or** their phone number, plus the password (if an ID is typed it is used and the phone is not checked; the error never says which part was wrong; phones are compared by their last 10 digits and are unique). HR and admin can also use email + password. Five failed attempts lock that ID for 15 minutes (in memory, per backend instance).
 - **Registering a phone** (My phone tab) is auto-approved only for the first phone and only from the office network, otherwise HR approves. Pairing (optional pair-once code) needs the office network. Neither needs a face.
 - **WiFi check.** Browsers cannot read the WiFi name, so the check compares the request's public IP with the office networks HR lists (HR console, WiFi tab: open it on the office WiFi and press "Use my current network"). With no active networks nothing is checked. Behind a reverse proxy set `APP_TRUST_PROXY=true`. A guest on the same WiFi, or a rooted phone faking its BSSID, can still pass, so keep HR review of flagged punches.
 - Kiosk employees (`OFFICE_DEVICE`) can still use the shared kiosk.

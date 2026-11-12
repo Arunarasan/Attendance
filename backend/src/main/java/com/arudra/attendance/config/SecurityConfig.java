@@ -39,6 +39,14 @@ public class SecurityConfig {
         http.csrf(c -> c.disable())
                 .cors(c -> c.configurationSource(cors))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // This server only returns JSON and images, never pages: lock down what a browser may do with a response.
+                // HSTS is sent on every response (the app usually sits behind a TLS-terminating proxy, so the request itself
+                // looks like plain HTTP); browsers ignore it over HTTP, so local development is unaffected.
+                .headers(h -> h
+                        .contentSecurityPolicy(c -> c.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
+                        .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .httpStrictTransportSecurity(s -> s.requestMatcher(org.springframework.security.web.util.matcher.AnyRequestMatcher.INSTANCE)
+                                .maxAgeInSeconds(31_536_000)))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/employee-login", "/api/public/**", "/error").permitAll()
@@ -69,10 +77,12 @@ public class SecurityConfig {
     public static class TokenFilter extends OncePerRequestFilter {
         private final JwtService jwt;
         private final JdbcClient db;
+        private final AppProps props;
 
-        public TokenFilter(JwtService jwt, JdbcClient db) {
+        public TokenFilter(JwtService jwt, JdbcClient db, AppProps props) {
             this.jwt = jwt;
             this.db = db;
+            this.props = props;
         }
 
         @Override
@@ -83,7 +93,7 @@ public class SecurityConfig {
             String dev = req.getHeader("X-Device-Token");
             if (auth != null && auth.startsWith("Bearer ")) {
                 actor = jwt.parse(auth.substring(7));
-                if (actor != null && !stillActive(actor.employeeId())) actor = null;
+
             } else if (dev != null && !dev.isBlank()) {
                 actor = db.sql("""
                         SELECT e.id AS employee_id, e.role AS role, t.device_id AS device_id
@@ -93,6 +103,24 @@ public class SecurityConfig {
                         """).param(Crypto.sha256(dev)).query(Actor.class).optional().orElse(null);
             }
             if (actor != null) {
+                // One lookup for both ways of signing in. The role comes from the database, not from the token: a login token is
+                // valid for days, and someone demoted or deactivated must lose access at once. An account that still has the
+                // default password may only read its own profile and change its password.
+                String[] state = db.sql("SELECT must_change_password, role FROM employees WHERE id = ? AND active = TRUE")
+                        .param(actor.employeeId()).query((rs, n) -> new String[]{String.valueOf(rs.getBoolean(1)), rs.getString(2)}).optional().orElse(null);
+                if (state == null) {
+                    actor = null;
+                } else {
+                    actor = new Actor(actor.employeeId(), state[1], actor.deviceId());
+                    if ("true".equals(state[0]) && props.enforcePasswordChange() && !allowedWhileChangingPassword(req)) {
+                        res.setStatus(403);
+                        res.setContentType("application/json");
+                        res.getWriter().write("{\"code\":\"PASSWORD_CHANGE_REQUIRED\",\"message\":\"Set a new password before continuing\"}");
+                        return;
+                    }
+                }
+            }
+            if (actor != null) {
                 var token = new UsernamePasswordAuthenticationToken(actor, null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + actor.role())));
                 SecurityContextHolder.getContext().setAuthentication(token);
@@ -100,9 +128,9 @@ public class SecurityConfig {
             chain.doFilter(req, res);
         }
 
-        private boolean stillActive(long id) {
-            return db.sql("SELECT COUNT(*) FROM employees WHERE id = ? AND active = TRUE").param(id)
-                    .query(Integer.class).single() > 0;
+        private static boolean allowedWhileChangingPassword(HttpServletRequest req) {
+            String uri = req.getRequestURI();
+            return ("GET".equals(req.getMethod()) && "/api/me".equals(uri)) || ("POST".equals(req.getMethod()) && "/api/me/password".equals(uri));
         }
     }
 }

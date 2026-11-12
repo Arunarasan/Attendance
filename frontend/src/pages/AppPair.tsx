@@ -31,8 +31,8 @@ export default function AppPair({ onDone }: { onDone: () => void }) {
         <h2>Pair this phone</h2>
         <p className="muted">Ask HR for your 8-character pairing code and connect to the office WiFi. You only do this once; after that the app opens straight to the clock. Most people simply <Link to="/login">sign in</Link> instead.</p>
         <form onSubmit={submit}>
-          <label>Pairing code</label>
-          <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={8} autoCapitalize="characters" required />
+          <label htmlFor="apppair-f1">Pairing code</label>
+          <input id="apppair-f1" value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={8} autoCapitalize="characters" required />
           {err && <div className="err">{err}</div>}
           <p><button className="btn big" disabled={busy || code.length < 8}>{busy ? 'Pairing…' : 'Pair'}</button></p>
         </form>

@@ -92,6 +92,18 @@ public class FaceService {
         }
     }
 
+    /**
+     * Removes everything biometric held about one person: face templates, photos sent with face requests, and the photos kept with
+     * punches. For people who leave or withdraw consent. Attendance hours and pay are not touched. Returns how many rows went.
+     */
+    @Transactional
+    public int deleteAll(long employeeId) {
+        int n = db.sql("DELETE FROM employee_face_templates WHERE employee_id = ?").param(employeeId).update();
+        n += db.sql("DELETE FROM face_requests WHERE employee_id = ?").param(employeeId).update();
+        n += db.sql("DELETE FROM punch_photos WHERE session_id IN (SELECT id FROM attendance_sessions WHERE employee_id = ?)").param(employeeId).update();
+        return n;
+    }
+
     static double[] parse(String s) {
         String[] parts = s.replace("[", "").replace("]", "").split(",");
         double[] d = new double[parts.length];

@@ -20,6 +20,30 @@ public class ApiErrors {
         return ResponseEntity.status(e.status()).body(body);
     }
 
+    /** A record that already exists (for example a race between two identical requests). */
+    @ExceptionHandler(org.springframework.dao.DuplicateKeyException.class)
+    ResponseEntity<Map<String, String>> duplicate(Exception e) {
+        return ResponseEntity.status(409).body(Map.of("code", "CONFLICT", "message", "That record already exists"));
+    }
+
+    /** A value too long or out of range for its column: the caller's mistake, not a server fault. */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    ResponseEntity<Map<String, String>> badValue(Exception e) {
+        return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", "A value is too long or out of range"));
+    }
+
+    /** A database lock conflict between two requests (MySQL deadlock) or no free database connection (overload): nothing was saved, trying again will work. */
+    @ExceptionHandler({org.springframework.dao.PessimisticLockingFailureException.class, org.springframework.jdbc.CannotGetJdbcConnectionException.class,
+            org.springframework.transaction.CannotCreateTransactionException.class})
+    ResponseEntity<Map<String, String>> busy(Exception e) {
+        return ResponseEntity.status(503).header("Retry-After", "1").body(Map.of("code", "BUSY", "message", "The server was busy. Please try again."));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<Map<String, String>> wrongMethod(Exception e) {
+        return ResponseEntity.status(405).body(Map.of("code", "METHOD_NOT_ALLOWED", "message", "That method is not allowed here"));
+    }
+
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentNotValidException.class, MethodArgumentTypeMismatchException.class})
     ResponseEntity<Map<String, String>> badInput(Exception e) {
         return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", "Invalid request"));

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { post, put } from '../../lib/api'
+import { del, post, put } from '../../lib/api'
 import FaceEnrol from '../FaceEnrol'
 import EmpPayExtras from './EmpPayExtras'
 import EmpOffDays from './EmpOffDays'
@@ -20,6 +20,11 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
   const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // For people who leave or withdraw consent: deletes face templates and photos. Hours and pay are kept.
+  const removeFace = async () => {
+    if (!window.confirm(`Remove all face data for ${emp.name}? They will no longer be recognised by face. Their hours and pay are not affected. This cannot be undone.`)) return
+    try { await del(`/api/hr/employees/${emp.id}/face`); toast(`Face data removed for ${emp.name}`); onChanged() } catch (e: any) { toast(e.message, true) }
+  }
   const [code, setCode] = useState<{ code: string; at: number } | null>(null)
   const [confirm, setConfirm] = useState<'deactivate' | 'revoke' | 'reactivate' | null>(null)
   const [enrol, setEnrol] = useState(false)
@@ -109,13 +114,14 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
       {tab === 'access' && <>
         <Field label="Reset password" error={errors.password} hint="Leave blank to keep the current password. Click Save changes to apply.">
           <div className="pw-wrap">
-            <input type={showPw ? 'text' : 'password'} value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" placeholder="New password" />
+            <input type={showPw ? 'text' : 'password'} value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" aria-label="Reset password" placeholder="New password" />
             <button type="button" className="btn ghost" onClick={() => setShowPw(s => !s)}>{showPw ? 'Hide' : 'Show'}</button>
             <button type="button" className="btn ghost" onClick={() => { setPw(randomPassword()); setShowPw(true) }}>Generate</button>
           </div>
         </Field>
         <div className="action-row"><div><b>Face</b><div className="muted">{emp.faceEnrolled ? 'Enrolled' : 'Not enrolled'}</div></div>
-          <button className="btn ghost" onClick={() => setEnrol(true)}>{emp.faceEnrolled ? 'Re-enrol face' : 'Enrol face'}</button></div>
+          <div className="row"><button className="btn ghost" onClick={() => setEnrol(true)}>{emp.faceEnrolled ? 'Re-enrol face' : 'Enrol face'}</button>
+            {emp.faceEnrolled && <button className="btn ghost" onClick={removeFace}>Remove face data</button>}</div></div>
         <div className="action-row"><div><b>Mobile app</b><div className="muted">{emp.appPaired ? 'Paired' : 'Not paired'}</div>
           {code && <div style={{ marginTop: 8 }}><span className="code">{code.code}</span><div className="hint">Valid 24 hours, single use.</div></div>}</div>
           <div className="row">

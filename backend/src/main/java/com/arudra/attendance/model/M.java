@@ -14,7 +14,7 @@ public final class M {
 
     public record EmpView(long id, String employeeCode, String name, String email, String phone, String role,
                           boolean active, BigDecimal hourlyRate, BigDecimal baseSalary, String attendanceMethod,
-                          String deviceBindingMode) {}
+                          String deviceBindingMode, boolean mustChangePassword) {}
 
     /** HR list row: the employee plus quick status flags for the Employees tab. */
     public record EmpRow(long id, String employeeCode, String name, String email, String phone, String role,

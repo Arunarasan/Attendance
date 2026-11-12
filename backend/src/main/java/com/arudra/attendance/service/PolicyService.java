@@ -29,7 +29,7 @@ public class PolicyService {
     }
 
     public Policy get() {
-        return db.sql("SELECT " + COLS + " FROM pay_policy WHERE id = 1").query(Policy.class).single();
+        return RequestCache.get("pay_policy", () -> db.sql("SELECT " + COLS + " FROM pay_policy WHERE id = 1").query(Policy.class).single());
     }
 
     public Policy update(Policy p) {

@@ -54,10 +54,10 @@ function PhotoRequest({ video, pos, onClose }: { video: React.RefObject<HTMLVide
     <form onSubmit={send} className="card" style={{ width: 'min(420px, 100%)', textAlign: 'left' }}>
       <h2>We could not recognise you</h2>
       <p className="muted">Send your photo to HR for approval. Nothing is recorded until HR approves it.</p>
-      <label>Employee ID</label>
-      <input value={code} onChange={e => setCode(e.target.value)} autoCapitalize="characters" required />
-      <label>Phone number</label>
-      <input type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+      <label htmlFor="facepunc-f1">Employee ID</label>
+      <input id="facepunc-f1" value={code} onChange={e => setCode(e.target.value)} autoCapitalize="characters" required />
+      <label htmlFor="facepunc-f2">Phone number</label>
+      <input id="facepunc-f2" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
       <label>I am</label>
       <div className="row">
         <button type="button" className={`btn${action === 'IN' ? '' : ' ghost'}`} onClick={() => setAction('IN')}>Clocking in</button>

@@ -98,10 +98,10 @@ export function Locations() {
       {open && <form className="lh-form lc-add" onSubmit={add}>
         <button type="button" className="lc-here" onClick={here} disabled={locating}><IAim size={20} />{locating ? 'Finding you…' : 'Use my current location'}</button>
         <div className="grid">
-          <div><label>Name</label><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Head office" /></div>
-          <div><label>Latitude</label><input value={f.latitude} onChange={e => setF({ ...f, latitude: e.target.value })} required placeholder="12.97160" /></div>
-          <div><label>Longitude</label><input value={f.longitude} onChange={e => setF({ ...f, longitude: e.target.value })} required placeholder="77.59460" /></div>
-          <div><label>Allowed distance (m)</label><input type="number" min="10" value={f.radiusMeters} onChange={e => setF({ ...f, radiusMeters: e.target.value })} required /></div>
+          <div><label htmlFor="location-f1">Name</label><input id="location-f1" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Head office" /></div>
+          <div><label htmlFor="location-f2">Latitude</label><input id="location-f2" value={f.latitude} onChange={e => setF({ ...f, latitude: e.target.value })} required placeholder="12.97160" /></div>
+          <div><label htmlFor="location-f3">Longitude</label><input id="location-f3" value={f.longitude} onChange={e => setF({ ...f, longitude: e.target.value })} required placeholder="77.59460" /></div>
+          <div><label htmlFor="location-f4">Allowed distance (m)</label><input id="location-f4" type="number" min="10" value={f.radiusMeters} onChange={e => setF({ ...f, radiusMeters: e.target.value })} required /></div>
         </div>
         {err && <div className="err">{err}</div>}
         <p style={{ marginBottom: 0 }}><button className="btn">Add location</button></p>
@@ -144,9 +144,9 @@ export function Networks() {
       {open && <form className="lh-form lc-add" onSubmit={add}>
         <button type="button" className="lc-here" onClick={useMine}><IWifi size={20} />Use my current network</button>
         <div className="grid">
-          <div><label>Name</label><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Office WiFi" /></div>
-          <div><label>Public IP or range (CIDR)</label><input value={f.cidr} placeholder="203.0.113.7 or 203.0.113.0/24" onChange={e => setF({ ...f, cidr: e.target.value })} /></div>
-          <div><label>Access point BSSID (Android app)</label><input value={f.bssid} placeholder="aa:bb:cc:dd:ee:ff" onChange={e => setF({ ...f, bssid: e.target.value })} /></div>
+          <div><label htmlFor="location-f5">Name</label><input id="location-f5" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Office WiFi" /></div>
+          <div><label htmlFor="location-f6">Public IP or range (CIDR)</label><input id="location-f6" value={f.cidr} placeholder="203.0.113.7 or 203.0.113.0/24" onChange={e => setF({ ...f, cidr: e.target.value })} /></div>
+          <div><label htmlFor="location-f7">Access point BSSID (Android app)</label><input id="location-f7" value={f.bssid} placeholder="aa:bb:cc:dd:ee:ff" onChange={e => setF({ ...f, bssid: e.target.value })} /></div>
         </div>
         {err && <div className="err">{err}</div>}
         <p style={{ marginBottom: 0 }}><button className="btn">Add network</button></p>

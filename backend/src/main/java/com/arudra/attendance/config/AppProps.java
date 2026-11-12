@@ -4,7 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("app")
 public record AppProps(String jwtSecret, int jwtHours, String seedAdminEmail, String seedAdminPassword,
-                       String corsOrigins, boolean trustProxy, Attendance attendance) {
+                       String corsOrigins, boolean trustProxy, int trustedProxyHops, boolean enforcePasswordChange,
+                       Attendance attendance) {
     public record Attendance(int geoGraceMeters, int maxAccuracyMarginMeters, int kioskMinGapSeconds,
                              double faceConfident, double faceWeak, double faceMargin,
                              boolean phoneFaceRequired, double faceLearn, String onCheckFail) {}

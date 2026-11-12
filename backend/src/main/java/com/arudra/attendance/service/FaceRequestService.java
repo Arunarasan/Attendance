@@ -101,6 +101,7 @@ public class FaceRequestService {
     public void approve(long id, long hrId) {
         Req r = load(id);
         if (!"PENDING".equals(r.status())) throw ApiException.conflict("Already decided");
+        time.lockEmployee(r.employeeId());
         M.Session open = time.openSession(r.employeeId());
         LocalDateTime at = r.requestedAt();
         if ("IN".equals(r.action())) {

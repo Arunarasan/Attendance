@@ -291,7 +291,7 @@ function Corrections() {
 
       <div className="pm-h"><h3>Reason</h3></div>
       <div className="lv-chips">{CORR_REASONS.map(r => <button key={r} type="button" className={reason === r ? 'on' : ''} onClick={() => setReason(r)}>{r}</button>)}</div>
-      <textarea className="lv-reason" rows={3} placeholder="Tell HR what happened" value={reason} onChange={e => setReason(e.target.value)} required />
+      <textarea className="lv-reason" rows={3} placeholder="Tell HR what happened" aria-label="What happened" value={reason} onChange={e => setReason(e.target.value)} required />
       {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
       <button className="lv-submit" disabled={busy || bad || !reason.trim()}><ISend size={20} />{busy ? 'Sending…' : 'Send to HR'}</button>
     </form>
@@ -394,7 +394,7 @@ function Leave() {
 
       <div className="pm-h"><h3>Reason</h3></div>
       <div className="lv-chips">{REASONS.map(r => <button key={r} type="button" className={f.reason === r ? 'on' : ''} onClick={() => setF({ ...f, reason: r })}>{r}</button>)}</div>
-      <textarea className="lv-reason" rows={3} placeholder="Write a short reason (optional)" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
+      <textarea className="lv-reason" rows={3} placeholder="Write a short reason (optional)" aria-label="Reason (optional)" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
 
       {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
       <button className="lv-submit" disabled={busy || !f.leaveTypeId}><ISend size={20} />{busy ? 'Sending…' : 'Submit Request'}</button>
@@ -605,9 +605,9 @@ function ChangePassword() {
     </section>
     {ok && <div className="msg">{ok}</div>}
     {open && <form className="pm-card" onSubmit={submit}>
-      <label>{t('currentPassword')}</label><input type="password" autoComplete="current-password" value={f.cur} onChange={e => setF({ ...f, cur: e.target.value })} required />
-      <label>{t('newPassword')}</label><input type="password" autoComplete="new-password" minLength={8} value={f.next} onChange={e => setF({ ...f, next: e.target.value })} required />
-      <label>{t('confirmPassword')}</label><input type="password" autoComplete="new-password" minLength={8} value={f.again} onChange={e => setF({ ...f, again: e.target.value })} required />
+      <label htmlFor="pw-cur">{t('currentPassword')}</label><input id="pw-cur" type="password" autoComplete="current-password" value={f.cur} onChange={e => setF({ ...f, cur: e.target.value })} required />
+      <label htmlFor="pw-new">{t('newPassword')}</label><input id="pw-new" type="password" autoComplete="new-password" minLength={8} value={f.next} onChange={e => setF({ ...f, next: e.target.value })} required />
+      <label htmlFor="pw-again">{t('confirmPassword')}</label><input id="pw-again" type="password" autoComplete="new-password" minLength={8} value={f.again} onChange={e => setF({ ...f, again: e.target.value })} required />
       {err && <div className="err">{err}</div>}
       <p style={{ marginBottom: 0 }}><button className="btn">{t('save')}</button></p>
     </form>}

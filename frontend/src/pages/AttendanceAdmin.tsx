@@ -68,10 +68,10 @@ export function Register() {
       <h3 style={{ margin: '0 0 2px' }}>Fix a time</h3>
       <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>Sets the first session of that day, or creates one for a fully missed day. It is approved immediately. Use it to close an open past session.</p>
       <div className="grid">
-        <div><label>Employee</label><select value={fix.employeeId} onChange={e => setFix({ ...fix, employeeId: e.target.value })} required><option value="">Choose…</option>{emps?.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-        <div><label>Date</label><input type="date" value={fix.date} onChange={e => setFix({ ...fix, date: e.target.value })} required /></div>
-        <div><label>In</label><input type="time" value={fix.inT} onChange={e => setFix({ ...fix, inT: e.target.value })} required /></div>
-        <div><label>Out</label><input type="time" value={fix.outT} onChange={e => setFix({ ...fix, outT: e.target.value })} required /></div>
+        <div><label htmlFor="attendan-f1">Employee</label><select id="attendan-f1" value={fix.employeeId} onChange={e => setFix({ ...fix, employeeId: e.target.value })} required><option value="">Choose…</option>{emps?.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+        <div><label htmlFor="attendan-f2">Date</label><input id="attendan-f2" type="date" value={fix.date} onChange={e => setFix({ ...fix, date: e.target.value })} required /></div>
+        <div><label htmlFor="attendan-f3">In</label><input id="attendan-f3" type="time" value={fix.inT} onChange={e => setFix({ ...fix, inT: e.target.value })} required /></div>
+        <div><label htmlFor="attendan-f4">Out</label><input id="attendan-f4" type="time" value={fix.outT} onChange={e => setFix({ ...fix, outT: e.target.value })} required /></div>
       </div>
       {err && <div className="err">{err}</div>}{msg && <div className="msg">{msg}</div>}
       <p style={{ marginBottom: 0 }}><button className="btn">Apply</button></p>
@@ -85,7 +85,7 @@ export function Register() {
     </div>
 
     <section className="lh-sec">
-      <div className="at-search"><ISearch size={18} /><input placeholder="Search employee name or ID" value={q} onChange={e => setQ(e.target.value)} />
+      <div className="at-search"><ISearch size={18} /><input aria-label="Search employees" placeholder="Search employee name or ID" value={q} onChange={e => setQ(e.target.value)} />
         {filter !== 'all' && <button onClick={() => setFilter('all')}>Clear filter: {LABEL[filter]} ×</button>}</div>
       {data && shown.length === 0 && <div className="lh-empty"><IUsers size={34} /><b>No one to show</b><small>Try a different day, filter or search.</small></div>}
       <div className="at-list">

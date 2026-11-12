@@ -17,12 +17,14 @@ public class EmployeeService {
     private static final Set<String> ROLES = Set.of("ADMIN", "HR", "EMPLOYEE");
     private static final Set<String> METHODS = Set.of("GEO", "OFFICE_DEVICE", "ANY");
     private static final Set<String> MODES = Set.of("OFF", "SOFT", "HARD");
+    /** The password the first admin account is created with when none is configured. It is public (it is in the README). */
+    public static final String DEFAULT_ADMIN_PASSWORD = "ChangeMe123!";
 
     public record Input(String employeeCode, String name, String email, String phone, String password, String role,
                         BigDecimal hourlyRate, BigDecimal baseSalary, String attendanceMethod, String deviceBindingMode,
                         Boolean active) {}
 
-    private static final String VIEW = "SELECT id, employee_code, name, email, phone, role, active, hourly_rate, base_salary, attendance_method, device_binding_mode FROM employees";
+    private static final String VIEW = "SELECT id, employee_code, name, email, phone, role, active, hourly_rate, base_salary, attendance_method, device_binding_mode, must_change_password FROM employees";
 
     private final JdbcClient db;
     private final PasswordEncoder encoder;
@@ -88,7 +90,8 @@ public class EmployeeService {
         if (e == null || !passwordMatches(e, current)) throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST, "BAD_PASSWORD", "Current password is wrong");
         if (next == null || next.length() < 8) throw ApiException.bad("New password must be at least 8 characters");
         if (next.equals(current)) throw ApiException.bad("New password must be different from the current one");
-        db.sql("UPDATE employees SET password_hash = ? WHERE id = ?").param(encoder.encode(next)).param(id).update();
+        if (DEFAULT_ADMIN_PASSWORD.equals(next)) throw ApiException.bad("Choose a different password: that one is the well-known default");
+        db.sql("UPDATE employees SET password_hash = ?, must_change_password = FALSE WHERE id = ?").param(encoder.encode(next)).param(id).update();
     }
 
     public boolean passwordMatches(M.Emp e, String raw) {
@@ -99,6 +102,7 @@ public class EmployeeService {
         require(in.employeeCode(), "Employee code");
         require(in.name(), "Name");
         require(in.email(), "Email");
+        validateFields(in);
         if (digits(in.phone()).length() < 7) throw ApiException.bad("A phone number is required (it is part of the employee login)");
         assertPhoneFree(in.phone(), null);
         if (in.password() == null || in.password().length() < 8) throw ApiException.bad("Password must be at least 8 characters");
@@ -122,6 +126,7 @@ public class EmployeeService {
     }
 
     public M.EmpView update(long id, Input in, long actorId) {
+        validateFields(in);
         M.EmpView cur = get(id);
         String role = in.role() == null ? cur.role() : in.role();
         String method = in.attendanceMethod() == null ? cur.attendanceMethod() : in.attendanceMethod();
@@ -190,6 +195,29 @@ public class EmployeeService {
                 throw ApiException.conflict("That phone number already belongs to " + e.name());
             }
         }
+    }
+
+    private static final BigDecimal MAX_HOURLY_RATE = new BigDecimal("99999999.99");     // DECIMAL(10,2)
+    private static final BigDecimal MAX_BASE_SALARY = new BigDecimal("9999999999.99");   // DECIMAL(12,2)
+
+    /** Lengths and ranges that match the database columns, so bad input is a 400 instead of a database error (500). */
+    private static void validateFields(Input in) {
+        maxLength(in.employeeCode(), 32, "Employee code");
+        maxLength(in.name(), 120, "Name");
+        maxLength(in.email(), 160, "Email");
+        if (in.phone() != null && digits(in.phone()).length() > 32) throw ApiException.bad("Phone number is too long");
+        money(in.hourlyRate(), MAX_HOURLY_RATE, "Hourly rate");
+        money(in.baseSalary(), MAX_BASE_SALARY, "Base salary");
+    }
+
+    private static void maxLength(String v, int max, String what) {
+        if (v != null && v.trim().length() > max) throw ApiException.bad(what + " is too long (at most " + max + " characters)");
+    }
+
+    private static void money(BigDecimal v, BigDecimal max, String what) {
+        if (v == null) return;
+        if (v.signum() < 0) throw ApiException.bad(what + " cannot be negative");
+        if (v.compareTo(max) > 0) throw ApiException.bad(what + " is too large");
     }
 
     private static void require(String v, String what) {

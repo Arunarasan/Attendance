@@ -26,12 +26,12 @@ export default function EmpPayExtras({ empId, toast }: { empId: number; toast: (
   return (
     <div className="full" style={{ marginTop: 6 }}>
       <div className="fieldset-title">Pay options</div>
-      <label>Pay mode</label>
-      <select value={f.payMode} onChange={e => setF({ ...f, payMode: e.target.value })}>
+      <label htmlFor="emppayex-f1">Pay mode</label>
+      <select id="emppayex-f1" value={f.payMode} onChange={e => setF({ ...f, payMode: e.target.value })}>
         <option value="">Company default</option><option value="HOURLY">Hourly: hours × hourly rate</option><option value="MONTHLY">Monthly: fixed salary, loss of pay for missed days</option>
       </select>
-      <label>Allowances per month (added to pay)</label>
-      <input type="number" min="0" value={f.allowances} onChange={e => setF({ ...f, allowances: e.target.value })} className={bad ? 'bad' : ''} />
+      <label htmlFor="emppayex-f2">Allowances per month (added to pay)</label>
+      <input id="emppayex-f2" type="number" min="0" value={f.allowances} onChange={e => setF({ ...f, allowances: e.target.value })} className={bad ? 'bad' : ''} />
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'inherit', marginTop: 12 }}>
         <input type="checkbox" style={{ width: 'auto' }} checked={f.otEligible} onChange={e => setF({ ...f, otEligible: e.target.checked })} /> Eligible for overtime pay
       </label>

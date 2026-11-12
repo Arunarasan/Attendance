@@ -35,10 +35,14 @@ public class CalendarService {
     }
 
     public Map<LocalDate, M.Holiday> holidaysBetween(LocalDate from, LocalDate to) {
-        Map<LocalDate, M.Holiday> out = new HashMap<>();
-        for (M.Holiday h : db.sql("SELECT id, holiday_date, name, paid FROM holidays WHERE holiday_date BETWEEN ? AND ?")
-                .param(from).param(to).query(M.Holiday.class).list()) out.put(h.holidayDate(), h);
-        return out;
+        // Read once per payroll preview (see RequestCache), not once per employee. Callers get their own copy.
+        Map<LocalDate, M.Holiday> cached = RequestCache.get(java.util.List.of("holidays", from, to), () -> {
+            Map<LocalDate, M.Holiday> out = new HashMap<>();
+            for (M.Holiday h : db.sql("SELECT id, holiday_date, name, paid FROM holidays WHERE holiday_date BETWEEN ? AND ?")
+                    .param(from).param(to).query(M.Holiday.class).list()) out.put(h.holidayDate(), h);
+            return out;
+        });
+        return new HashMap<>(cached);
     }
 
     public M.Holiday addHoliday(LocalDate date, String name, Boolean paid) {

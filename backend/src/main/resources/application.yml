@@ -6,19 +6,31 @@ spring:
     url: jdbc:h2:file:./data/attendance;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
     username: sa
     password:
+    hikari:
+      # Connections to the database. 10 (the default) saturated at about 100 very active users in load tests; each request holds one
+      # for a few milliseconds, so more helps until the database itself is the limit. Wait 5 s for one, then answer 503 (not 30 s, then 500).
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      connection-timeout: ${DB_CONNECT_TIMEOUT_MS:5000}
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    # Common scripts, plus the few that differ per database (db/vendor/h2, db/vendor/mysql; same version number in both).
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
 
 app:
   version: '@project.version@'
-  jwt-secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+  # No default on purpose. Unset = a random secret per run (sessions end on restart). Production: 32+ random characters.
+  jwt-secret: ${APP_JWT_SECRET:}
   jwt-hours: 720
   seed-admin-email: ${APP_ADMIN_EMAIL:admin@example.com}
   seed-admin-password: ${APP_ADMIN_PASSWORD:ChangeMe123!}
   cors-origins: ${APP_CORS:http://localhost:5173}
   # Only true behind a reverse proxy you control: the office-network check then trusts X-Forwarded-For.
   trust-proxy: ${APP_TRUST_PROXY:false}
+  # How many proxies you control sit in front of the app. The client IP is the entry that many places from the right of
+  # X-Forwarded-For (a proxy appends the address it saw; anything to the left was supplied by the client and can be forged).
+  trusted-proxy-hops: ${APP_TRUSTED_PROXY_HOPS:1}
+  # An account still using the shipped default password must change it before anything else works.
+  enforce-password-change: ${APP_ENFORCE_PASSWORD_CHANGE:true}
   # Standard hours, weekly off days, overtime rate and default pay mode are edited by HR (HR console, Pay settings).
   attendance:
     geo-grace-meters: 20

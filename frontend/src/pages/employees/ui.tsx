@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react'
+import { cloneElement, isValidElement, ReactElement, ReactNode, useCallback, useEffect, useId, useState } from 'react'
 
 function useEscape(onClose: () => void) {
   useEffect(() => {
@@ -54,10 +54,11 @@ export function useToasts() {
 }
 
 export function Field({ label, error, hint, className, children }: { label: string; error?: string; hint?: string; className?: string; children: ReactNode }) {
+  const id = useId()
   return (
     <div className={className}>
-      <label>{label}</label>
-      {children}
+      <label htmlFor={id}>{label}</label>
+      {isValidElement(children) ? cloneElement(children as ReactElement<{ id?: string }>, { id }) : children}
       {error ? <div className="ferr">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
     </div>
   )

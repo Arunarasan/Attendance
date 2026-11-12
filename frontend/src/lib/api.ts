@@ -44,7 +44,27 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
     }
     throw new ApiError(res.status, data?.code ?? 'ERROR', data?.message ?? `Request failed (${res.status})`, data)
   }
+  // The server returns at most one page of a long list and reports the full size in X-Total-Count. Fetch the remaining pages so
+  // no screen silently shows only the first page (for example the employee dropdowns of a large company).
+  if (method === 'GET' && Array.isArray(data) && !/[?&](limit|offset)=/.test(path)) {
+    const total = Number(res.headers.get('X-Total-Count'))
+    if (total > data.length) return (await fetchRemainingPages(path, headers, data, total)) as T
+  }
   return data as T
+}
+
+/** Follows ?limit=&offset= until `total` rows are collected. Exported for tests. */
+export async function fetchRemainingPages(path: string, headers: Record<string, string>, first: any[], total: number, doFetch: typeof fetch = fetch): Promise<any[]> {
+  const all = [...first]
+  const sep = path.includes('?') ? '&' : '?'
+  while (all.length < total) {
+    const res = await doFetch(`${path}${sep}limit=${Math.max(first.length, 1)}&offset=${all.length}`, { method: 'GET', headers })
+    if (!res.ok) throw new ApiError(res.status, 'ERROR', `Request failed (${res.status})`)
+    const page = JSON.parse(await res.text())
+    if (!Array.isArray(page) || page.length === 0) break // the list shrank while we were reading: stop with what we have
+    all.push(...page)
+  }
+  return all
 }
 
 /** Fetches a protected binary (such as a photo) with the sign-in header and returns an object URL for <img src>. */

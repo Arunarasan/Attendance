@@ -27,8 +27,8 @@ export default function EmpOffDays({ empId, toast }: { empId: number; toast: (t:
       <p className="hint" style={{ marginTop: 4 }}>Now: <b>{(cur.days as string[]).map(full).join(' & ')}</b> ({SRC[cur.source] ?? cur.source}).
         {cur.upcomingDays && <> From {cur.upcomingFrom}: <b>{(cur.upcomingDays as string[]).map(full).join(' & ')}</b>.</>}</p>
       <div className="chips" style={{ margin: '8px 0' }}>{DAYS.map(([k, l]) => <button key={k} type="button" className={`chip${pick.includes(k) ? ' on' : ''}`} onClick={() => toggle(k)}>{l}</button>)}</div>
-      <label>Starts on</label>
-      <input type="date" value={from} min={today()} onChange={e => e.target.value && setFrom(e.target.value)} />
+      <label htmlFor="empoffda-f1">Starts on</label>
+      <input id="empoffda-f1" type="date" value={from} min={today()} onChange={e => e.target.value && setFrom(e.target.value)} />
       <div className="hint">Choose one or two days. Changes only apply from the start date, so past pay is never recalculated.</div>
       <p className="row">
         <button type="button" className="btn" disabled={busy || pick.length === 0 || same} onClick={() => save(pick)}>Save weekly off</button>

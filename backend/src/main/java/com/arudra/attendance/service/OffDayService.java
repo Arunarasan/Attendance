@@ -55,8 +55,9 @@ public class OffDayService {
     // ---------------- lookups ----------------
 
     public List<Rule> rules(long employeeId) {
-        return db.sql("SELECT id, employee_id, off_days, valid_from, source, set_by FROM employee_off_rules WHERE employee_id = ? ORDER BY valid_from, id")
-                .param(employeeId).query(Rule.class).list();
+        return List.copyOf(RequestCache.get(java.util.List.of("off_rules", employeeId), () ->
+            db.sql("SELECT id, employee_id, off_days, valid_from, source, set_by FROM employee_off_rules WHERE employee_id = ? ORDER BY valid_from, id")
+                .param(employeeId).query(Rule.class).list()));
     }
 
     /** One lookup of the employee's rules, then a cheap answer per date. */

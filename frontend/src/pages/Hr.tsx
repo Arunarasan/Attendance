@@ -40,7 +40,7 @@ function Kiosks() {
   const re = async (id: number) => { const r = await post(`/api/hr/kiosks/${id}/pair-code`); setCode(r.code) }
   return (<div className="card"><h2>Office kiosks</h2>
     <p className="muted">On the shared phone or PC open <b>/kiosk</b> and enter the code (valid 24 h, single use). Re-pairing replaces the old device.</p>
-    <form className="row" onSubmit={create}><input placeholder="Kiosk name" value={name} onChange={e => setName(e.target.value)} required style={{ maxWidth: 260 }} /><button className="btn">Create</button></form>
+    <form className="row" onSubmit={create}><input aria-label="Kiosk name" placeholder="Kiosk name" value={name} onChange={e => setName(e.target.value)} required style={{ maxWidth: 260 }} /><button className="btn">Create</button></form>
     {code && <p>Pairing code: <span className="code">{code}</span></p>}
     <table><thead><tr><th>Name</th><th>Paired</th><th>Active</th><th></th></tr></thead>
       <tbody>{data?.map(k => <tr key={k.id}><td>{k.name}</td><td>{k.paired ? 'yes' : 'no'}</td><td>{k.active ? 'yes' : 'no'}</td>
@@ -98,7 +98,7 @@ export default function Hr({ me, onLogout }: { me: Me; onLogout: () => void }) {
       <div className="hx-main">
         <header className="hx-top">
           <button className="hx-burger" onClick={() => setOpen(true)} aria-label="Open menu"><IMenu /></button>
-          <div className="hx-hello"><h2>{title}</h2><p>{sub}</p></div>
+          <div className="hx-hello"><h1>{title}</h1><p>{sub}</p></div>
           <button className="hx-bell" onClick={() => go('approve')} aria-label={`${pending} pending approvals`}><IBell />{pending > 0 && <i>{pending}</i>}</button>
           <div className="hx-user"><span className="av">{initials}</span><span><b>{me.name}</b><small>{me.role === 'ADMIN' ? t('h_admin') : t('h_hr')}</small></span><button onClick={onLogout}>{t('signOut')}</button></div>
         </header>

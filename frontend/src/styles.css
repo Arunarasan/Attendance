@@ -1,9 +1,9 @@
 /* Arudra Attender green theme (light only, so every screen matches the design) */
 :root {
-  --bg: #F1EEDD; --card: #FBF9F1; --ink: #382F25; --muted: #5f7a63; --line: #dfe3cb;
+  --bg: #F1EEDD; --card: #FBF9F1; --ink: #382F25; --muted: #4f6a53; --line: #dfe3cb;
   --brand: #287A3E; --brand-2: #287A3E; --brand-ink: #fff; --brand-soft: #dcebcf;
   --side: #082F1B; --side-2: #104526; --side-ink: #e8f3df;
-  --warn: #b45309; --warn-bg: #fef3c7; --bad: #dc2626; --bad-bg: #fde8e8; --ok-bg: #e3f5d6; --ok: #287A3E; --accent: #E87516;
+  --warn: #b45309; --warn-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fde8e8; --ok-bg: #e3f5d6; --ok: #1f6a34; --accent: #E87516;
   --radius: 16px; --shadow: 0 6px 22px rgba(23, 77, 44, .10);
   color-scheme: light;
 }
@@ -46,7 +46,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 /* Dark room: the whole screen turns white so it lights the face for the camera. */
 .fill-light { background: #fff; color: #111; }
 .fill-light .muted { color: #333; }
-.fill-light a { color: #287A3E; }
+.fill-light a { color: #1f6a34; }
 
 /* ---- Employees tab ---- */
 .emp-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -117,3 +117,9 @@ input.bad { border-color: var(--bad); }
 @keyframes ld-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
 @keyframes ld-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ld-logo, .ld-bar i, .ld-in { animation: none; } .ld-bar i { width: 100%; } }
+
+/* Touch targets: on phones and tablets every control is at least 36px tall (icon-only buttons 40px). */
+@media (pointer: coarse), (max-width: 820px) {
+  button, .btn, select, input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]) { min-height: 36px; }
+  .at-fix, .lh-del, .hx-bell, .lh-quota button { min-width: 40px; min-height: 40px; }
+}

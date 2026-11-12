@@ -68,7 +68,7 @@ export default function WeeklyOffSection() {
 
       <div className="pm-h"><h3>Why?</h3></div>
       <div className="lv-chips">{REASONS.map(r => <button key={r} type="button" className={reason === r ? 'on' : ''} onClick={() => setReason(r)}>{r}</button>)}</div>
-      <textarea className="lv-reason" rows={3} placeholder="Tell HR why you need this day" value={reason} onChange={e => setReason(e.target.value)} required />
+      <textarea className="lv-reason" rows={3} placeholder="Tell HR why you need this day" aria-label="Why you need this day" value={reason} onChange={e => setReason(e.target.value)} required />
 
       {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
       <button className="lv-submit" disabled={busy || pick.length === 0 || !reason.trim()}><ISend size={20} />{busy ? 'Sending…' : 'Send to HR'}</button>

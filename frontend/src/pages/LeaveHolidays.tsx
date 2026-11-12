@@ -75,10 +75,10 @@ function AddType({ onDone }: { onDone: () => void }) {
   return (
     <form className="lh-form" onSubmit={add}>
       <div className="grid">
-        <div><label>Code</label><input value={t.code} maxLength={12} onChange={e => setT({ ...t, code: e.target.value })} required placeholder="e.g. ML" /></div>
-        <div><label>Name</label><input value={t.name} onChange={e => setT({ ...t, name: e.target.value })} required placeholder="e.g. Maternity leave" /></div>
-        <div><label>Pay</label><select value={t.paid ? 'paid' : 'unpaid'} onChange={e => setT({ ...t, paid: e.target.value === 'paid' })}><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
-        <div><label>Days per year (0 = no limit)</label><input type="number" min="0" step="0.5" value={t.annualQuota} onChange={e => setT({ ...t, annualQuota: e.target.value })} /></div>
+        <div><label htmlFor="leavehol-f1">Code</label><input id="leavehol-f1" value={t.code} maxLength={12} onChange={e => setT({ ...t, code: e.target.value })} required placeholder="e.g. ML" /></div>
+        <div><label htmlFor="leavehol-f2">Name</label><input id="leavehol-f2" value={t.name} onChange={e => setT({ ...t, name: e.target.value })} required placeholder="e.g. Maternity leave" /></div>
+        <div><label htmlFor="leavehol-f3">Pay</label><select id="leavehol-f3" value={t.paid ? 'paid' : 'unpaid'} onChange={e => setT({ ...t, paid: e.target.value === 'paid' })}><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
+        <div><label htmlFor="leavehol-f4">Days per year (0 = no limit)</label><input id="leavehol-f4" type="number" min="0" step="0.5" value={t.annualQuota} onChange={e => setT({ ...t, annualQuota: e.target.value })} /></div>
       </div>
       {err && <div className="err">{err}</div>}
       <p><button className="btn">Add leave type</button></p>
@@ -97,13 +97,13 @@ function RecordLeave({ emps, types }: { emps: any[]; types: any[] }) {
   return (
     <form className="lh-form" onSubmit={apply}>
       <div className="grid">
-        <div><label>Employee</label><select value={f.employeeId} onChange={e => setF({ ...f, employeeId: e.target.value })} required><option value="">Choose…</option>{emps.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-        <div><label>Type</label><select value={f.leaveTypeId} onChange={e => setF({ ...f, leaveTypeId: e.target.value })} required><option value="">Choose…</option>{types.filter(x => x.active).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
-        <div><label>From</label><input type="date" value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value, endDate: e.target.value > f.endDate ? e.target.value : f.endDate })} required /></div>
-        <div><label>To</label><input type="date" value={f.endDate} min={f.startDate} onChange={e => setF({ ...f, endDate: e.target.value })} required /></div>
+        <div><label htmlFor="leavehol-f5">Employee</label><select id="leavehol-f5" value={f.employeeId} onChange={e => setF({ ...f, employeeId: e.target.value })} required><option value="">Choose…</option>{emps.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+        <div><label htmlFor="leavehol-f6">Type</label><select id="leavehol-f6" value={f.leaveTypeId} onChange={e => setF({ ...f, leaveTypeId: e.target.value })} required><option value="">Choose…</option>{types.filter(x => x.active).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
+        <div><label htmlFor="leavehol-f7">From</label><input id="leavehol-f7" type="date" value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value, endDate: e.target.value > f.endDate ? e.target.value : f.endDate })} required /></div>
+        <div><label htmlFor="leavehol-f8">To</label><input id="leavehol-f8" type="date" value={f.endDate} min={f.startDate} onChange={e => setF({ ...f, endDate: e.target.value })} required /></div>
       </div>
       {f.startDate === f.endDate && <label className="lh-check"><input type="checkbox" checked={f.halfDay} onChange={e => setF({ ...f, halfDay: e.target.checked })} /> Half day</label>}
-      <label>Reason</label><input value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} placeholder="For example: called in sick" />
+      <label htmlFor="leavehol-f9">Reason</label><input id="leavehol-f9" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} placeholder="For example: called in sick" />
       {err && <div className="err">{err}</div>}{ok && <div className="msg">{ok}</div>}
       <p><button className="btn">Record leave</button></p>
     </form>
@@ -187,9 +187,9 @@ export function Holidays() {
 
     {open && <form className="lh-form lh-card" onSubmit={add}>
       <div className="grid">
-        <div><label>Date</label><input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} required /></div>
-        <div><label>Name</label><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Diwali" /></div>
-        <div><label>Pay</label><select value={f.paid ? 'paid' : 'unpaid'} onChange={e => setF({ ...f, paid: e.target.value === 'paid' })}><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
+        <div><label htmlFor="leavehol-f10">Date</label><input id="leavehol-f10" type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} required /></div>
+        <div><label htmlFor="leavehol-f11">Name</label><input id="leavehol-f11" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} required placeholder="e.g. Diwali" /></div>
+        <div><label htmlFor="leavehol-f12">Pay</label><select id="leavehol-f12" value={f.paid ? 'paid' : 'unpaid'} onChange={e => setF({ ...f, paid: e.target.value === 'paid' })}><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
       </div>
       {err && <div className="err">{err}</div>}
       <p><button className="btn">Add holiday</button></p>

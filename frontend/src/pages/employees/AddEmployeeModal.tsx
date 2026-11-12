@@ -48,7 +48,7 @@ export default function AddEmployeeModal({ onClose, onDone }: { onClose: () => v
         <div className="fgrid">
           <Field label="Password" error={show_('password')} hint="8+ characters" className="full">
             <div className="pw-wrap">
-              <input type={show ? 'text' : 'password'} className={show_('password') ? 'bad' : ''} value={f.password} onChange={set('password')} autoComplete="new-password" />
+              <input type={show ? 'text' : 'password'} className={show_('password') ? 'bad' : ''} value={f.password} onChange={set('password')} autoComplete="new-password" aria-label="Password" />
               <button type="button" className="btn ghost" onClick={() => setShow(s => !s)}>{show ? 'Hide' : 'Show'}</button>
               <button type="button" className="btn ghost" onClick={() => { setF({ ...f, password: randomPassword() }); setShow(true) }}>Generate</button>
             </div>

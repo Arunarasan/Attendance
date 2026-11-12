@@ -8,8 +8,9 @@ import Kiosk from './pages/Kiosk'
 import AppPair from './pages/AppPair'
 import FacePunch from './pages/FacePunch'
 import LoadingScreen from './components/LoadingScreen'
+import ChangePasswordRequired from './pages/ChangePasswordRequired'
 
-export type Me = { id: number; name: string; role: string; employeeCode: string }
+export type Me = { id: number; name: string; role: string; employeeCode: string; mustChangePassword?: boolean }
 
 function Shell() {
   const nav = useNavigate()
@@ -33,6 +34,8 @@ function Shell() {
   // Not signed in: go to the sign-in page (face punch is a button there). Signed in: straight to home, no sign-in again.
   const loginPath = '/login'
   const logout = () => { setAuth(null); setMe(null); nav(loginPath) }
+
+  if (me?.mustChangePassword) return <ChangePasswordRequired name={me.name} onDone={load} onLogout={logout} />
 
   return (
     <Routes>

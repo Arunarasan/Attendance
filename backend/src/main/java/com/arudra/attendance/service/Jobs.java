@@ -54,9 +54,27 @@ public class Jobs implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         Integer count = db.sql("SELECT COUNT(*) FROM employees").query(Integer.class).single();
-        if (count > 0) return;
+        if (count == 0) {
         db.sql("INSERT INTO employees (employee_code, name, email, password_hash, role) VALUES ('ADMIN', 'Administrator', ?, ?, 'ADMIN')")
                 .param(props.seedAdminEmail()).param(encoder.encode(props.seedAdminPassword())).update();
         log.warn("Seeded admin account {}. Change its password before any real use.", props.seedAdminEmail());
+        }
+        flagDefaultPasswords();
+    }
+
+    /**
+     * Every start: any admin or HR account whose password is still the shipped default must change it before doing
+     * anything else. This also catches accounts created by older versions of the app.
+     */
+    private void flagDefaultPasswords() {
+        if (!props.enforcePasswordChange()) return;
+        var rows = db.sql("SELECT id, email, password_hash FROM employees WHERE role IN ('ADMIN', 'HR') AND active = TRUE AND must_change_password = FALSE")
+                .query((rs, n) -> new String[]{rs.getString("id"), rs.getString("email"), rs.getString("password_hash")}).list();
+        for (String[] r : rows) {
+            if (encoder.matches(com.arudra.attendance.service.EmployeeService.DEFAULT_ADMIN_PASSWORD, r[2])) {
+                db.sql("UPDATE employees SET must_change_password = TRUE WHERE id = ?").param(Long.parseLong(r[0])).update();
+                log.warn("Account {} still uses the default password. It must set a new one at its next sign-in.", r[1]);
+            }
+        }
     }
 }

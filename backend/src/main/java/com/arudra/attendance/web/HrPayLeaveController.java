@@ -76,7 +76,10 @@ public class HrPayLeaveController {
 
     // ---- leave requests ----
     @GetMapping("/leave/requests")
-    public List<M.LeaveRequestView> leaveRequests(@RequestParam(defaultValue = "PENDING") String status) { return leave.byStatus(status.toUpperCase()); }
+    public List<M.LeaveRequestView> leaveRequests(@RequestParam(defaultValue = "PENDING") String status, @RequestParam(required = false) Integer limit,
+                                                    @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) {
+        return Paging.of(leave.byStatus(status.toUpperCase()), limit, offset, res);
+    }
 
     @PostMapping("/leave/requests/{id}/approve")
     public Map<String, String> approve(@AuthenticationPrincipal Actor a, @PathVariable long id) { leave.decide(id, true, a.employeeId()); return Map.of("status", "APPROVED"); }

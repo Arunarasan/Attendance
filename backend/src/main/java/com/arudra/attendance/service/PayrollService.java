@@ -69,7 +69,25 @@ public class PayrollService {
     public record Line(long employeeId, String employeeName, String mode, BigDecimal regularHours, BigDecimal overtimeHours, BigDecimal gross,
                        BigDecimal deductions, String deductionDetail, BigDecimal net, double paidLeaveDays, double unpaidLeaveDays, int holidayDays,
                        BigDecimal creditHours, BigDecimal lopDays, BigDecimal lopAmount, BigDecimal allowances, BigDecimal bonus, Integer score, boolean lopApplied,
-                       String shortfallMethod, BigDecimal requiredHours, BigDecimal shortfallHours, BigDecimal shortfallAmount, BigDecimal extraHours, BigDecimal extraAmount) {}
+                       String shortfallMethod, BigDecimal requiredHours, BigDecimal shortfallHours, BigDecimal shortfallAmount, BigDecimal extraHours, BigDecimal extraAmount,
+                       /** Something HR should look at before generating (for example pay of 0 for someone who worked), or null. */
+                       String warning) {}
+
+    /**
+     * Pay of 0 for someone who worked is almost always a setup mistake (no rate for the pay mode that applies), so say so in the
+     * preview instead of letting HR generate a run full of zeros.
+     */
+    static String payWarning(BigDecimal hourlyRate, BigDecimal baseSalary, String mode, BigDecimal workedHours, boolean hasCredit, BigDecimal gross) {
+        if (gross.signum() != 0 || (workedHours.signum() <= 0 && !hasCredit)) return null;
+        boolean hourly = "HOURLY".equals(mode);
+        BigDecimal rate = hourly ? hourlyRate : baseSalary;
+        if (rate != null && rate.signum() != 0) return null;
+        BigDecimal other = hourly ? baseSalary : hourlyRate;
+        if (other != null && other.signum() != 0) {
+            return "Pay mode is " + (hourly ? "hourly" : "monthly") + " but only a " + (hourly ? "monthly salary" : "hourly rate") + " is set, so pay is 0. Change this employee's pay mode (Employees, Pay) or enter a " + (hourly ? "rate per hour" : "monthly salary") + ".";
+        }
+        return "No " + (hourly ? "hourly rate" : "monthly salary") + " is set, so pay is 0. Set one under Employees before generating.";
+    }
 
     /** Working days used as the monthly divisor, by the company's chosen basis. */
     public static int workingDays(String basis, YearMonth ym, int scheduledDays) {
@@ -150,6 +168,11 @@ public class PayrollService {
 
     /** As {@link #preview(String, String)}, optionally for one employee only. */
     public List<Line> preview(String period, String mode, Long onlyEmployee) {
+        // One preview reads the same policy, holidays and off-day rules for every employee: read them once (see RequestCache).
+        return RequestCache.scope(() -> previewUncached(period, mode, onlyEmployee));
+    }
+
+    private List<Line> previewUncached(String period, String mode, Long onlyEmployee) {
         if (mode == null) mode = settings.get().defaultMode();
         if (!"HOURLY".equals(mode) && !"MONTHLY".equals(mode)) throw ApiException.bad("mode must be HOURLY or MONTHLY");
         YearMonth ym;
@@ -206,7 +229,8 @@ public class PayrollService {
                     gross.subtract(ded.total()), leaveDays.paid(), leaveDays.unpaid(), holidayDays, hours(creditMinutes),
                     BigDecimal.valueOf(lopApplied ? dm.lopDays() : 0).setScale(1, RoundingMode.HALF_UP), lopAmt, ep.allowances(), bonus, sc.score(), lopApplied,
                     byHours ? "HOURS" : null, hc == null ? BigDecimal.ZERO : hc.requiredHours(), hc == null ? BigDecimal.ZERO : hc.shortfallHours(),
-                    hc == null ? BigDecimal.ZERO : hc.shortfallAmount(), hc == null ? BigDecimal.ZERO : hc.extraHours(), hc == null ? BigDecimal.ZERO : hc.extraAmount()));
+                    hc == null ? BigDecimal.ZERO : hc.shortfallAmount(), hc == null ? BigDecimal.ZERO : hc.extraHours(), hc == null ? BigDecimal.ZERO : hc.extraAmount(),
+                    payWarning(e.hourlyRate(), e.baseSalary(), empMode, c.regularHours().add(c.overtimeHours()), creditMinutes > 0, gross)));
         }
         return out;
     }
@@ -214,11 +238,16 @@ public class PayrollService {
     @Transactional
     public long generate(String period, String mode, long hrId) {
         if (mode == null) mode = settings.get().defaultMode();
-        List<Line> lines = preview(period, mode);
+        // Check first: a repeated request fails at once instead of after a long preview. (The unique index still decides races.)
         Integer exists = db.sql("SELECT COUNT(*) FROM payroll_runs WHERE period = ?").param(period).query(Integer.class).single();
         if (exists > 0) throw ApiException.conflict("Payroll for " + period + " was already generated");
+        List<Line> lines = preview(period, mode);
         var kh = new GeneratedKeyHolder();
-        db.sql("INSERT INTO payroll_runs (period, mode, created_by) VALUES (?,?,?)").param(period).param(mode).param(hrId).update(kh, "id");
+        try {
+            db.sql("INSERT INTO payroll_runs (period, mode, created_by) VALUES (?,?,?)").param(period).param(mode).param(hrId).update(kh, "id");
+        } catch (org.springframework.dao.DuplicateKeyException e) { // a simultaneous request got there first (uq_payroll_period)
+            throw ApiException.conflict("Payroll for " + period + " was already generated");
+        }
         long runId = kh.getKey().longValue();
         for (Line l : lines) {
             db.sql("""
@@ -259,6 +288,8 @@ public class PayrollService {
     /** An adjustment is added to (or, if negative, taken from) net after deductions. */
     @Transactional
     public void adjust(long payslipId, BigDecimal amount) {
+        if (amount.abs().compareTo(new BigDecimal("9999999999.99")) > 0) throw ApiException.bad("The adjustment is too large");
+        amount = amount.setScale(2, java.math.RoundingMode.HALF_UP);
         int n = db.sql("UPDATE payslips SET adjustments = ?, net = gross - deductions + ? WHERE id = ?").param(amount).param(amount).param(payslipId).update();
         if (n == 0) throw ApiException.notFound("Payslip");
     }

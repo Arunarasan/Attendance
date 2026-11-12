@@ -73,6 +73,10 @@ public class KioskService {
         faces.enrol(employeeId, descriptors);
     }
 
+    public int deleteFace(long employeeId) {
+        return faces.deleteAll(employeeId);
+    }
+
     // ---------- kiosk device ----------
 
     /** Trades the single-use code for a token. Only the hash is stored; re-pairing replaces (revokes) the old token. */
@@ -179,6 +183,7 @@ public class KioskService {
 
     @Transactional
     PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev, String note, String photo) {
+        time.lockEmployee(employeeId);
         M.Emp emp = time.employee(employeeId);
         M.Session open = time.openSession(employeeId);
         LocalDateTime now = time.now();

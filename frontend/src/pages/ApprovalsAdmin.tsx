@@ -173,7 +173,7 @@ export function WeekOffRequests() {
               </div>
               <div className="lh-req-d"><ICal size={16} />From {new Date(r.effectiveFrom + 'T00:00').toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</div>
               {r.reason && <q>{r.reason}</q>}
-              <input className="wk-note" placeholder="Note to the employee (optional)" value={note[r.id] ?? ''} onChange={e => setNote({ ...note, [r.id]: e.target.value })} />
+              <input className="wk-note" aria-label="Note to the employee (optional)" placeholder="Note to the employee (optional)" value={note[r.id] ?? ''} onChange={e => setNote({ ...note, [r.id]: e.target.value })} />
             </div>
             <div className="lh-req-a">
               <button className="lh-ok" onClick={() => act(r.id, 'approve')}><ICheckCircle size={18} />Approve</button>

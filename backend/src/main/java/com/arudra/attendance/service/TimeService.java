@@ -113,8 +113,18 @@ public class TimeService {
         return note;
     }
 
+    /**
+     * Serialises everything that reads and then changes one employee's sessions. Call it first inside a transaction:
+     * the row lock is held until commit, so two simultaneous punches for the same person run one after the other and the
+     * second one sees the first one's result (otherwise both pass the "not clocked in" check and both insert).
+     */
+    public void lockEmployee(long employeeId) {
+        db.sql("SELECT id FROM employees WHERE id = ? FOR UPDATE").param(employeeId).query(Long.class).optional();
+    }
+
     @Transactional
     public M.Session clockIn(long employeeId, PunchInput in, Decision decision) {
+        lockEmployee(employeeId);
         M.Emp emp = activeEmployee(employeeId);
         requireNoOpen(employeeId);
         Eval ev = verification.evaluate(emp, in);
@@ -127,6 +137,7 @@ public class TimeService {
 
     @Transactional
     public M.Session clockOut(long employeeId, PunchInput in, Decision decision) {
+        lockEmployee(employeeId);
         M.Emp emp = activeEmployee(employeeId);
         M.Session open = requireOpen(employeeId);
         Eval ev = verification.evaluate(emp, in);
@@ -139,6 +150,7 @@ public class TimeService {
 
     @Transactional
     public M.Session startBreak(long employeeId) {
+        lockEmployee(employeeId);
         M.Session s = requireOpen(employeeId);
         if (s.breakStarted() != null) throw ApiException.conflict("Break already started");
         db.sql("UPDATE attendance_sessions SET break_started = ? WHERE id = ?").param(now()).param(s.id()).update();
@@ -147,6 +159,7 @@ public class TimeService {
 
     @Transactional
     public M.Session endBreak(long employeeId) {
+        lockEmployee(employeeId);
         M.Session s = requireOpen(employeeId);
         if (s.breakStarted() == null) throw ApiException.conflict("No break in progress");
         int mins = (int) Math.max(0, Duration.between(s.breakStarted(), now()).toMinutes());
@@ -248,15 +261,26 @@ public class TimeService {
         }
         int ot = Math.max(0, total - settings.get().standardDailyHours() * 60);
         LocalDateTime checkOut = anyOpen ? null : last;
-        int updated = db.sql("UPDATE attendance SET check_in = ?, check_out = ?, break_minutes = ?, worked_minutes = ?, overtime_minutes = ? WHERE employee_id = ? AND work_date = ?")
-                .param(first).param(checkOut).param(breaks).param(total).param(ot).param(employeeId).param(date).update();
-        if (updated == 0 && first != null) {
-            db.sql("INSERT INTO attendance (employee_id, work_date, check_in, check_out, break_minutes, worked_minutes, overtime_minutes) VALUES (?,?,?,?,?,?,?)")
+        if (first != null) {
+            // One atomic statement. The old "UPDATE, and INSERT if nothing was updated" took gap locks on MySQL that made
+            // two different employees punching at the same moment deadlock (found under load: rare HTTP 500s).
+            db.sql("INSERT INTO attendance (employee_id, work_date, check_in, check_out, break_minutes, worked_minutes, overtime_minutes) VALUES (?,?,?,?,?,?,?) "
+                    + "ON DUPLICATE KEY UPDATE check_in = VALUES(check_in), check_out = VALUES(check_out), break_minutes = VALUES(break_minutes), "
+                    + "worked_minutes = VALUES(worked_minutes), overtime_minutes = VALUES(overtime_minutes)")
                     .param(employeeId).param(date).param(first).param(checkOut).param(breaks).param(total).param(ot).update();
+        } else {
+            // No live session left for the day: keep the day row if there is one, but there is nothing to create.
+            db.sql("UPDATE attendance SET check_in = ?, check_out = ?, break_minutes = ?, worked_minutes = ?, overtime_minutes = ? WHERE employee_id = ? AND work_date = ?")
+                    .param(null).param(checkOut).param(breaks).param(total).param(ot).param(employeeId).param(date).update();
         }
     }
 
     // ---------- approvals ----------
+
+    /** How many sessions wait for HR. A count, not the list: the HR console asks for this on every page. */
+    public int pendingCount() {
+        return db.sql("SELECT COUNT(*) FROM attendance_sessions WHERE approval_status = 'PENDING'").query(Integer.class).single();
+    }
 
     public List<M.PendingSession> pending() {
         return db.sql("""
@@ -322,8 +346,10 @@ public class TimeService {
         return session(kh.getKey().longValue());
     }
 
-    private static void validate(LocalDateTime in, LocalDateTime out) {
+    private void validate(LocalDateTime in, LocalDateTime out) {
         if (in == null || out == null || !out.isAfter(in)) throw ApiException.bad("Check-out must be after check-in");
+        LocalDateTime limit = now().plusMinutes(5); // small allowance for clock differences
+        if (in.isAfter(limit) || out.isAfter(limit)) throw ApiException.bad("Times cannot be in the future");
         if (Duration.between(in, out).toHours() > 24) throw ApiException.bad("A session cannot exceed 24 hours");
     }
 

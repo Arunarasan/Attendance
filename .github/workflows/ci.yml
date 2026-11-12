@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests (Java 17)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      # Runs the end-to-end tests on in-memory H2, including the regression tests for the audit findings
+      # (parallel punches, forged tokens, role revocation, password change, input rules, paging, ...).
+      - name: mvn test
+        run: mvn -B -f backend/pom.xml test
+
+  backend-mysql:
+    name: Backend on MySQL (migrations and a real start)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: attendance
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Package
+        run: mvn -B -f backend/pom.xml -DskipTests package
+      # The audit found problems that only exist on MySQL (an H2-only migration, a payroll race, a deadlock),
+      # so every change must at least migrate a fresh MySQL database and answer the health check.
+      - name: Start on MySQL and check health
+        env:
+          SPRING_PROFILES_ACTIVE: mysql
+          DB_URL: jdbc:mysql://127.0.0.1:3306/attendance
+          DB_USER: root
+          DB_PASSWORD: ci-root-password
+          APP_JWT_SECRET: ci-only-secret-ci-only-secret-ci-only-1234
+          APP_ADMIN_EMAIL: ci@example.com
+          APP_ADMIN_PASSWORD: ci-Admin-pass-2026
+        run: |
+          java -jar backend/target/attendance-*.jar --server.port=8080 > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:8080/api/public/health | grep -q '"status":"UP"'; then echo "UP"; exit 0; fi
+            sleep 2
+          done
+          echo "App did not become healthy"; tail -60 app.log; exit 1
+
+  frontend:
+    name: Frontend (tests, audit, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Known vulnerabilities (high and above fail the build)
+        run: npm audit --audit-level=high
+      - name: Unit tests
+        run: npm test
+      - name: Type check and production build
+        run: npm run build
