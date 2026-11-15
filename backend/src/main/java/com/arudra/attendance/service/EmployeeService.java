@@ -125,6 +125,24 @@ public class EmployeeService {
         }
     }
 
+    /** Permanently removes an employee and everything recorded for them (attendance, photos, face data, leave, pay, payslips). */
+    @org.springframework.transaction.annotation.Transactional
+    public void delete(long id, long actorId) {
+        M.EmpView cur = get(id);
+        if (id == actorId) throw ApiException.bad("You cannot delete your own account");
+        if ("ADMIN".equals(cur.role()) && cur.active()) {
+            Integer others = db.sql("SELECT COUNT(*) FROM employees WHERE role = 'ADMIN' AND active = TRUE AND id <> ?").param(id).query(Integer.class).single();
+            if (others == 0) throw ApiException.bad("At least one active admin is required");
+        }
+        db.sql("DELETE FROM punch_photos WHERE session_id IN (SELECT id FROM attendance_sessions WHERE employee_id = ?)").param(id).update();
+        for (String t : new String[]{"attendance_sessions", "attendance", "user_device_events", "user_devices", "app_tokens", "pairing_codes",
+                "employee_face_templates", "attendance_correction_requests", "face_requests", "leave_requests", "employee_pay",
+                "lop_overrides", "employee_off_rules", "off_day_requests", "payslips"}) {
+            db.sql("DELETE FROM " + t + " WHERE employee_id = ?").param(id).update();
+        }
+        db.sql("DELETE FROM employees WHERE id = ?").param(id).update();
+    }
+
     public M.EmpView update(long id, Input in, long actorId) {
         validateFields(in);
         M.EmpView cur = get(id);

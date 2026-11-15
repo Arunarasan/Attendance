@@ -26,7 +26,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
     try { await del(`/api/hr/employees/${emp.id}/face`); toast(`Face data removed for ${emp.name}`); onChanged() } catch (e: any) { toast(e.message, true) }
   }
   const [code, setCode] = useState<{ code: string; at: number } | null>(null)
-  const [confirm, setConfirm] = useState<'deactivate' | 'revoke' | 'reactivate' | null>(null)
+  const [confirm, setConfirm] = useState<'deactivate' | 'revoke' | 'reactivate' | 'delete' | null>(null)
   const [enrol, setEnrol] = useState(false)
   const [leaveAsk, setLeaveAsk] = useState(false)
   const set = (k: string) => (e: any) => setP({ ...p, [k]: e.target.value })
@@ -69,6 +69,11 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
   async function setActive(active: boolean) {
     setConfirm(null)
     try { await put(`/api/hr/employees/${emp.id}`, { active }); toast(active ? `${emp.name} reactivated` : `${emp.name} deactivated`); onChanged(); onClose() }
+    catch (e: any) { toast(e.message, true) }
+  }
+  async function removeEmployee() {
+    setConfirm(null)
+    try { await del(`/api/hr/employees/${emp.id}`); toast(`${emp.name} deleted`); onChanged(); onClose() }
     catch (e: any) { toast(e.message, true) }
   }
   async function makeCode() {
@@ -131,7 +136,10 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
         <div className="action-row"><div><b>Approved phone</b><div className="muted">{emp.phoneApproved ? 'One phone approved' : 'None approved'}</div></div><span className="muted hint">Manage in the Phones tab</span></div>
         <div className="danger-zone"><div className="action-row">
           <div><b>{emp.active ? 'Deactivate employee' : 'Reactivate employee'}</b><div className="muted">{self ? 'You cannot deactivate your own account' : emp.active ? 'Blocks sign-in and punching. History is kept.' : 'Allows sign-in and punching again.'}</div></div>
-          <button className={`btn${emp.active ? ' danger' : ' ghost'}`} disabled={self && emp.active} onClick={() => setConfirm(emp.active ? 'deactivate' : 'reactivate')}>{emp.active ? 'Deactivate' : 'Reactivate'}</button></div></div>
+          <button className={`btn${emp.active ? ' danger' : ' ghost'}`} disabled={self && emp.active} onClick={() => setConfirm(emp.active ? 'deactivate' : 'reactivate')}>{emp.active ? 'Deactivate' : 'Reactivate'}</button></div>
+          <div className="action-row">
+            <div><b>Delete employee</b><div className="muted">{self ? 'You cannot delete your own account' : 'Permanently removes them and all their attendance, leave and payslip records. Cannot be undone.'}</div></div>
+            <button className="btn danger" disabled={self} onClick={() => setConfirm('delete')}>Delete</button></div></div>
       </>}
 
       {err && <div className="err">{err}</div>}
@@ -141,6 +149,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
     {enrol && <Modal onClose={() => setEnrol(false)}><FaceEnrol employee={{ id: emp.id, name: emp.name }} onClose={() => { setEnrol(false); onChanged() }} /></Modal>}
     {confirm === 'deactivate' && <Confirm title={`Deactivate ${emp.name}?`} body="They will no longer be able to sign in or punch. Their history stays." confirmLabel="Deactivate" danger onYes={() => setActive(false)} onNo={() => setConfirm(null)} />}
     {confirm === 'reactivate' && <Confirm title={`Reactivate ${emp.name}?`} body="They will be able to sign in and punch again." confirmLabel="Reactivate" onYes={() => setActive(true)} onNo={() => setConfirm(null)} />}
+    {confirm === 'delete' && <Confirm title={`Delete ${emp.name} permanently?`} body="All their attendance, photos, face data, leave and payslips will be erased. This cannot be undone. To keep history, deactivate instead." confirmLabel="Delete forever" danger onYes={removeEmployee} onNo={() => setConfirm(null)} />}
     {confirm === 'revoke' && <Confirm title="Revoke app access?" body={`${emp.name} will be signed out of the mobile app and need a new pairing code.`} confirmLabel="Revoke" danger onYes={revoke} onNo={() => setConfirm(null)} />}
     {leaveAsk && <Confirm title="Discard changes?" body="You have unsaved changes." confirmLabel="Discard" danger onYes={onClose} onNo={() => setLeaveAsk(false)} />}
   </>)

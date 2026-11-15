@@ -76,6 +76,13 @@ public class HrController {
         return employees.update(id, in, a.employeeId());
     }
 
+    @DeleteMapping("/employees/{id}")
+    public Map<String, String> deleteEmployee(@AuthenticationPrincipal Actor a, @PathVariable long id) {
+        adminOnly(a, employees.get(id).role());
+        employees.delete(id, a.employeeId());
+        return Map.of("status", "DELETED");
+    }
+
     @PostMapping("/employees/{id}/app-code")
     public Map<String, String> appCode(@AuthenticationPrincipal Actor a, @PathVariable long id) {
         adminOnly(a, employees.get(id).role());
