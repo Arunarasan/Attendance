@@ -14,6 +14,13 @@ class HealthTest {
     @Autowired TestRestTemplate http;
 
     @Test
+    void pingIsPublicAndLightweight() {
+        ResponseEntity<String> r = http.getForEntity("/api/public/ping", String.class);
+        assertEquals(200, r.getStatusCode().value());
+        assertEquals("{\"status\":\"UP\"}", r.getBody());
+    }
+
+    @Test
     void healthIsPublicAndReportsUpWithoutDetails() {
         ResponseEntity<String> r = http.getForEntity("/api/public/health", String.class);
         assertEquals(200, r.getStatusCode().value());

@@ -18,6 +18,12 @@ public class HealthController {
         this.db = db;
     }
 
+    /** Lightweight keep-alive for uptime monitors: no database access, always 200 while the app is running. */
+    @GetMapping("/ping")
+    public Map<String, String> ping() {
+        return Map.of("status", "UP");
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         try {
