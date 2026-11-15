@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=Asia/Kolkata}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/attendance?useSSL=false}
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
     hikari:
@@ -9,6 +9,10 @@ spring:
       connection-timeout: 60000
       initialization-fail-timeout: 60000
       data-source-properties:
+        # The database may be in any country. Pin the connection to IST so TIMESTAMP columns are stored and read as IST wall-clock
+        # time whatever the DB server's own zone (the JVM default is also IST, see AttendanceApplication). Do not put serverTimezone in DB_URL.
+        connectionTimeZone: "+05:30"
+        forceConnectionTimeZoneToSession: true
         connectTimeout: 30000
         socketTimeout: 60000
   flyway:

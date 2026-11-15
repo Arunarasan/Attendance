@@ -35,3 +35,6 @@ Take a backup first. The app applies new migrations on start. A database created
 
 ## Capacity (measured, not promised)
 On one developer machine, shared with MySQL and the load generator, with `-Xmx350m`: about 375 requests per second at 50 very active users (p95 170 ms), no errors up to 500 simultaneous users (p95 4.7 s at 500), and a 5-minute soak of 39,500 requests with no errors and no memory growth. Generating payroll takes about 9 ms per employee (7 seconds for 814 employees), so a company above a few thousand employees should expect a payroll preview of a minute or more and needs a longer proxy timeout. These numbers are a starting point: repeat the load test on your real hosting.
+
+## Time zone
+All punch times are Indian Standard Time. The app sets its own zone to `Asia/Kolkata` (override: `APP_TIMEZONE`) and pins the MySQL connection to `+05:30`, so the database server can be in any country. Do not add `serverTimezone` / `connectionTimeZone` to `DB_URL`. Times saved before this change were stored in the old zone and are not converted.
