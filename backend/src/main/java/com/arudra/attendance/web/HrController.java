@@ -222,6 +222,11 @@ public class HrController {
     }
     @GetMapping("/payroll/runs") public List<M.Run> runs(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.runs(), limit, offset, res); }
     @GetMapping("/payroll/runs/{id}/payslips") public List<M.PayslipView> payslips(@PathVariable long id, @RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.payslips(id), limit, offset, res); }
+    @DeleteMapping("/payroll/runs/{id}")
+    public Map<String, String> deleteRun(@PathVariable long id) {
+        payroll.deleteRun(id);
+        return Map.of("status", "DELETED");
+    }
     @PutMapping("/payroll/payslips/{id}")
     public Map<String, String> editPayslip(@PathVariable long id, @RequestBody PayrollService.Edit b) {
         payroll.edit(id, b);

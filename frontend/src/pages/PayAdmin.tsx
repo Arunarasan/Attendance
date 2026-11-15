@@ -438,6 +438,16 @@ export function Payroll() {
     if (warned > 0 && !window.confirm(`${warned} employee(s) have a pay warning (pay of 0 for someone who worked). Generate anyway?`)) return
     try { const r = await post('/api/hr/payroll/generate', { period, mode }); setRun(r.runId); setPrev(null); reload() } catch (e: any) { setErr(e.message) }
   }
+  // Remove a run (and all its payslips, including hand edits) so the month can be generated again.
+  async function deleteRun(r: any) {
+    if (!window.confirm(`Delete the ${r.period} payroll run and all its payslips?\n\nAny hand edits to these payslips will be lost. You can then Preview and Generate ${r.period} again. This cannot be undone.`)) return
+    setErr('')
+    try {
+      await del(`/api/hr/payroll/runs/${r.id}`)
+      if (run === r.id) setRun(null)
+      setPrev(null); setPeriod(r.period); reload()
+    } catch (e: any) { setErr(e.message) }
+  }
   // Hand-edit one payslip: base pay, allowances, bonus, deductions, adjustment. Net is worked out live.
   const [pe, setPe] = useState<null | { id: number; name: string; base: string; allow: string; bonus: string; ded: string; adj: string }>(null)
   const [peErr, setPeErr] = useState('')
@@ -511,7 +521,8 @@ export function Payroll() {
         {data?.map(r => (
           <div key={r.id} className={`lh-type${run === r.id ? ' lc-sel' : ''}`}><b>{r.period}</b>
             <small className="muted">{r.mode.toLowerCase()} · {fmtDateTime(r.createdAt)}</small>
-            <button className="lh-add" onClick={() => { setRun(r.id); setPrev(null) }}>View payslips</button></div>))}
+            <button className="lh-add" onClick={() => { setRun(r.id); setPrev(null) }}>View payslips</button>
+            <button className="btn ghost" onClick={() => deleteRun(r)}>Delete &amp; regenerate</button></div>))}
       </div>
     </Card>
   </>)

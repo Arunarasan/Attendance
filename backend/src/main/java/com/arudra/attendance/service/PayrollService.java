@@ -265,6 +265,15 @@ public class PayrollService {
         return runId;
     }
 
+    /** Removes a whole run and its payslips so the month can be generated again. */
+    @Transactional
+    public void deleteRun(long runId) {
+        if (db.sql("SELECT COUNT(*) FROM payroll_runs WHERE id = ?").param(runId).query(Integer.class).single() == 0)
+            throw ApiException.notFound("Payroll run");
+        db.sql("DELETE FROM payslips WHERE run_id = ?").param(runId).update();
+        db.sql("DELETE FROM payroll_runs WHERE id = ?").param(runId).update();
+    }
+
     public List<M.Run> runs() {
         return db.sql("SELECT id, period, mode, created_at FROM payroll_runs ORDER BY id DESC").query(M.Run.class).list();
     }
