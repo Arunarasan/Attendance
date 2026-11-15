@@ -15,8 +15,8 @@ import java.util.Map;
 public class PublicController {
     public record PairApp(String code, String publicKey, String label, String bssid) {}
     public record PairKiosk(String code) {}
-    public record Face(double[] descriptor) {}
-    public record Manual(String identifier, double[] descriptor) {}
+    public record Face(double[] descriptor, String action) {}
+    public record Manual(String identifier, double[] descriptor, String action) {}
     public record FaceRequestBody(String employeeCode, String phone, String action, String photo, Double lat, Double lng, Double accuracy, String bssid) {}
     public record FacePunch(double[] descriptor, Double lat, Double lng, Double accuracy, String bssid, Boolean confirm, String note, String photo) {}
 
@@ -58,7 +58,7 @@ public class PublicController {
 
     @PostMapping("/kiosk/punch")
     public KioskService.PunchResult face(@RequestHeader(value = "X-Kiosk-Token", required = false) String token, @RequestBody Face b) {
-        return kiosks.punchFace(token, b.descriptor());
+        return kiosks.punchFace(token, b.descriptor(), b.action());
     }
 
     @PostMapping("/face-punch")
@@ -90,6 +90,6 @@ public class PublicController {
 
     @PostMapping("/kiosk/punch-manual")
     public KioskService.PunchResult manual(@RequestHeader(value = "X-Kiosk-Token", required = false) String token, @RequestBody Manual b) {
-        return kiosks.punchManual(token, b.identifier(), b.descriptor());
+        return kiosks.punchManual(token, b.identifier(), b.descriptor(), b.action());
     }
 }

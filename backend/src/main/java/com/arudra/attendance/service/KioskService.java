@@ -117,11 +117,14 @@ public class KioskService {
         return new Who(ranked.get(0).getKey(), d0, d0 > cfg.faceConfident(), null);
     }
 
-    public PunchResult punchFace(String token, double[] descriptor) {
+    public PunchResult punchFace(String token, double[] descriptor) { return punchFace(token, descriptor, null); }
+
+    /** intent is "IN" or "OUT" (what the person tapped); null keeps the old toggle behaviour. */
+    public PunchResult punchFace(String token, double[] descriptor, String intent) {
         long kioskId = authenticate(token);
         Who w = identify(descriptor);
         if (w.failure() != null) return w.failure();
-        PunchResult r = toggle(w.employeeId(), kioskId, "KIOSK", w.distance(), w.weak(), w.weak() ? "Weak face match" : null);
+        PunchResult r = toggle(w.employeeId(), kioskId, "KIOSK", new Eval(w.weak(), w.weak() ? "Weak face match" : null, "KIOSK", null, null, null, null, null, null, w.distance(), List.of()), null, null, intent);
         learnFrom(r, w, descriptor);
         return r;
     }
@@ -162,7 +165,9 @@ public class KioskService {
     }
 
     /** Fallback: typed employee code or phone. Auto-approved only if a supplied face also matches that employee. */
-    public PunchResult punchManual(String token, String identifier, double[] descriptor) {
+    public PunchResult punchManual(String token, String identifier, double[] descriptor) { return punchManual(token, identifier, descriptor, null); }
+
+    public PunchResult punchManual(String token, String identifier, double[] descriptor, String intent) {
         long kioskId = authenticate(token);
         String id = identifier == null ? "" : identifier.trim();
         Long empId = db.sql("SELECT id FROM employees WHERE active = TRUE AND (LOWER(employee_code) = LOWER(?) OR phone = ?)")
@@ -170,7 +175,7 @@ public class KioskService {
         if (empId == null) return new PunchResult("NOT_RECOGNISED", null, null, false, "No employee with that ID");
         Double dist = FaceService.valid(descriptor) ? faces.distanceTo(empId, descriptor) : null;
         boolean matched = dist != null && dist <= cfg.faceWeak();
-        return toggle(empId, kioskId, "KIOSK_MANUAL", dist, !matched, matched ? null : "Manual punch without face match");
+        return toggle(empId, kioskId, "KIOSK_MANUAL", new Eval(!matched, matched ? null : "Manual punch without face match", "KIOSK_MANUAL", null, null, null, null, null, null, dist, List.of()), null, null, intent);
     }
 
     PunchResult toggle(long employeeId, Long kioskId, String source, Double faceDistance, boolean flagged, String reason) {
@@ -183,12 +188,23 @@ public class KioskService {
 
     @Transactional
     PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev, String note, String photo) {
+        return toggle(employeeId, kioskId, source, ev, note, photo, null);
+    }
+
+    @Transactional
+    PunchResult toggle(long employeeId, Long kioskId, String source, Eval ev, String note, String photo, String intent) {
         time.lockEmployee(employeeId);
         M.Emp emp = time.employee(employeeId);
         M.Session open = time.openSession(employeeId);
         LocalDateTime now = time.now();
         Double faceDistance = ev.faceDistance();
         boolean flagged = ev.flagged();
+        if ("IN".equals(intent) && open != null) {
+            return new PunchResult("ALREADY_IN", emp.name(), faceDistance, false, "Already checked in, " + emp.name());
+        }
+        if ("OUT".equals(intent) && open == null) {
+            return new PunchResult("NOT_IN", emp.name(), faceDistance, false, "You have not checked in yet, " + emp.name());
+        }
         if (open != null) {
             if (open.workDate().isBefore(now.toLocalDate())) {
                 return new PunchResult("PAST_OPEN", emp.name(), faceDistance, false, "Yesterday's session is still open. Ask HR.");
