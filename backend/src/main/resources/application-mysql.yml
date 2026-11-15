@@ -3,3 +3,14 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=UTC}
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
+    hikari:
+      # Cloud DBs (e.g. TiDB Starter) can be slow to wake and TLS handshakes are
+      # slow on small instances; allow more time before giving up.
+      connection-timeout: 60000
+      initialization-fail-timeout: 60000
+      data-source-properties:
+        connectTimeout: 30000
+        socketTimeout: 60000
+  flyway:
+    connect-retries: 5
+    connect-retries-interval: 5s
