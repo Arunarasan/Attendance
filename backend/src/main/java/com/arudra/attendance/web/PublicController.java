@@ -88,6 +88,25 @@ public class PublicController {
         }
     }
 
+    /** Paired kiosk: employee ID + photo ask HR to approve the punch (no phone needed; the kiosk token vouches for the device). */
+    @PostMapping("/kiosk/photo-request")
+    public Map<String, Object> kioskPhotoRequest(@RequestHeader(value = "X-Kiosk-Token", required = false) String token, @RequestBody FaceRequestBody b,
+                                                 jakarta.servlet.http.HttpServletRequest req) {
+        kiosks.authenticate(token);
+        String ip = clientIp.of(req);
+        String key = "kr:" + (b.employeeCode() == null ? "" : b.employeeCode());
+        loginThrottle.check(key, ip);
+        var ctx = new VerificationService.PunchInput(null, null, null, null, null, null, null, null, ip);
+        try {
+            long id = faceRequests.submit(b.employeeCode(), null, b.action(), b.photo(), ctx, false);
+            loginThrottle.ok(key, ip);
+            return Map.of("status", "PENDING", "id", id);
+        } catch (com.arudra.attendance.config.ApiException e) {
+            if ("BAD_DETAILS".equals(e.code())) loginThrottle.fail(key, ip);
+            throw e;
+        }
+    }
+
     @PostMapping("/kiosk/punch-manual")
     public KioskService.PunchResult manual(@RequestHeader(value = "X-Kiosk-Token", required = false) String token, @RequestBody Manual b) {
         return kiosks.punchManual(token, b.identifier(), b.descriptor(), b.action());

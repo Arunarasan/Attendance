@@ -25,7 +25,6 @@ export default function Kiosk() {
   const [token, setToken] = useState<string | null>(() => { try { return localStorage.getItem(KEY) } catch { return null } })
   const [code, setCode] = useState('')
   const [id, setId] = useState('')
-  const [phone, setPhone] = useState('')
   const [action, setAction] = useState<Action | null>(null) // null = home screen
   const [mode, setMode] = useState<'face' | 'id'>('face')
   const [hint, setHint] = useState('Starting camera…')
@@ -45,7 +44,7 @@ export default function Kiosk() {
 
   function home() {
     window.clearTimeout(clearTimer.current)
-    setResult(null); setApproval(null); setAction(null); setErr(''); setId(''); setPhone(''); setIdPhoto(null); setMode('face'); busy.current = false
+    setResult(null); setApproval(null); setAction(null); setErr(''); setId(''); setIdPhoto(null); setMode('face'); busy.current = false
   }
 
   function show(r: Result) {
@@ -122,13 +121,13 @@ export default function Kiosk() {
     } catch (e: any) { setErr(e.message) }
   }
 
-  /** ID + phone + a photo taken here: goes to HR as an approval request; nothing is recorded until HR approves. */
+  /** ID + a photo taken here: goes to HR as an approval request; nothing is recorded until HR approves. */
   async function sendId(e: FormEvent) {
     e.preventDefault(); setErr('')
     if (!idPhoto) { setErr('Take your photo first'); return }
     setIdBusy(true)
     try {
-      await kioskCall('/api/public/face-request', { employeeCode: id, phone, action, photo: idPhoto })
+      await kioskCall('/api/public/kiosk/photo-request', { employeeCode: id, action, photo: idPhoto }, token!)
       setApproval({ photo: idPhoto, sent: true, busy: false })
       window.clearTimeout(clearTimer.current)
       clearTimer.current = window.setTimeout(home, 5000)
@@ -140,7 +139,7 @@ export default function Kiosk() {
     if (!approval?.photo) { setErr('No photo was taken. Try scanning again.'); return }
     setApproval({ ...approval, busy: true })
     try {
-      await kioskCall('/api/public/face-request', { employeeCode: id, phone, action, photo: approval.photo })
+      await kioskCall('/api/public/kiosk/photo-request', { employeeCode: id, action, photo: approval.photo }, token!)
       setApproval({ ...approval, busy: false, sent: true })
       window.clearTimeout(clearTimer.current)
       clearTimer.current = window.setTimeout(home, 5000)
@@ -225,8 +224,6 @@ export default function Kiosk() {
             <p className="muted">Nothing is recorded until HR approves your photo.</p>
             <label htmlFor="kiosk-a1">Employee ID</label>
             <input id="kiosk-a1" value={id} onChange={e => setId(e.target.value)} required />
-            <label htmlFor="kiosk-a2">Phone number</label>
-            <input id="kiosk-a2" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
             <p className="row"><button className="btn" disabled={approval.busy}>{approval.busy ? 'Sending…' : 'Send for approval'}</button>
               <button type="button" className="btn ghost" onClick={retry}>Back</button></p>
           </form>
@@ -238,8 +235,6 @@ export default function Kiosk() {
           <form onSubmit={sendId}>
             <label htmlFor="kiosk-f1">Employee ID</label>
             <input id="kiosk-f1" value={id} onChange={e => setId(e.target.value)} autoFocus required />
-            <label htmlFor="kiosk-f2">Phone number</label>
-            <input id="kiosk-f2" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
             <p className="row">
               <button type="button" className="btn ghost" disabled={!idPhoto && !camReady} onClick={() => { if (idPhoto) { setIdPhoto(null); return } const p = snapFrame(video.current); if (p) { setIdPhoto(p); setErr('') } else setErr('The camera is not ready. Allow camera access and try again.') }}>{idPhoto ? 'Retake photo' : camReady ? 'Take photo' : 'Starting camera…'}</button>
               <button className="btn" disabled={idBusy || !idPhoto}>{idBusy ? 'Sending…' : 'Send for approval'}</button>

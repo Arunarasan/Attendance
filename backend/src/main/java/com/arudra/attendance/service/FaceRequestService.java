@@ -42,10 +42,15 @@ public class FaceRequestService {
     /** Wrong ID/phone is reported as 401 so the caller can count it against the lockout. */
     @Transactional
     public long submit(String employeeCode, String phone, String action, String photoDataUrl, PunchInput ctx) {
+        return submit(employeeCode, phone, action, photoDataUrl, ctx, true);
+    }
+
+    /** From a paired kiosk the employee ID is enough (the device is trusted and HR still approves the photo); anywhere else the phone must match too. */
+    public long submit(String employeeCode, String phone, String action, String photoDataUrl, PunchInput ctx, boolean requirePhone) {
         if (!"IN".equals(action) && !"OUT".equals(action)) throw ApiException.bad("action must be IN or OUT");
         M.Emp emp = employees.byCode(employeeCode);
-        if (emp == null || !emp.active() || !EmployeeService.samePhone(emp.phone(), phone)) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "BAD_DETAILS", "Wrong employee ID or phone number");
+        if (emp == null || !emp.active() || (requirePhone && !EmployeeService.samePhone(emp.phone(), phone))) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "BAD_DETAILS", requirePhone ? "Wrong employee ID or phone number" : "No employee with that ID");
         }
         byte[] photo = decodePhoto(photoDataUrl);
         int pending = db.sql("SELECT COUNT(*) FROM face_requests WHERE employee_id = ? AND status = 'PENDING'").param(emp.id()).query(Integer.class).single();
