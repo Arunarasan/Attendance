@@ -222,6 +222,11 @@ public class HrController {
     }
     @GetMapping("/payroll/runs") public List<M.Run> runs(@RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.runs(), limit, offset, res); }
     @GetMapping("/payroll/runs/{id}/payslips") public List<M.PayslipView> payslips(@PathVariable long id, @RequestParam(required = false) Integer limit, @RequestParam(required = false) Integer offset, jakarta.servlet.http.HttpServletResponse res) { return Paging.of(payroll.payslips(id), limit, offset, res); }
+    @PutMapping("/payroll/payslips/{id}")
+    public Map<String, String> editPayslip(@PathVariable long id, @RequestBody PayrollService.Edit b) {
+        payroll.edit(id, b);
+        return Map.of("status", "UPDATED");
+    }
     @PostMapping("/payroll/payslips/{id}/adjust")
     public Map<String, String> adjust(@PathVariable long id, @RequestBody AdjustBody b) {
         if (b.amount() == null) throw ApiException.bad("amount is required");

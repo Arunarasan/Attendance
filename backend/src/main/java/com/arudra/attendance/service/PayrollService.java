@@ -293,4 +293,27 @@ public class PayrollService {
         int n = db.sql("UPDATE payslips SET adjustments = ?, net = gross - deductions + ? WHERE id = ?").param(amount).param(amount).param(payslipId).update();
         if (n == 0) throw ApiException.notFound("Payslip");
     }
+
+    /** HR's hand edit of one payslip: gross = base + allowances + bonus, net = gross - deductions + adjustments. Hours and leave days are left as they were. */
+    public record Edit(BigDecimal basePay, BigDecimal allowances, BigDecimal bonus, BigDecimal deductions, BigDecimal adjustments) {}
+
+    @Transactional
+    public void edit(long payslipId, Edit e) {
+        BigDecimal base = money(e.basePay(), "Pay", false), allow = money(e.allowances(), "Allowances", false), bonus = money(e.bonus(), "Bonus", false);
+        BigDecimal ded = money(e.deductions(), "Deductions", false), adj = money(e.adjustments(), "Adjustment", true);
+        BigDecimal gross = base.add(allow).add(bonus);
+        BigDecimal net = gross.subtract(ded).add(adj);
+        if (net.signum() < 0) throw ApiException.bad("Net pay cannot be below 0");
+        if (net.compareTo(new BigDecimal("9999999999.99")) > 0) throw ApiException.bad("The amounts are too large");
+        int n = db.sql("UPDATE payslips SET gross = ?, allowances = ?, bonus = ?, deductions = ?, adjustments = ?, net = ? WHERE id = ?")
+                .param(gross).param(allow).param(bonus).param(ded).param(adj).param(net).param(payslipId).update();
+        if (n == 0) throw ApiException.notFound("Payslip");
+    }
+
+    private static BigDecimal money(BigDecimal v, String what, boolean mayBeNegative) {
+        if (v == null) throw ApiException.bad(what + " is required");
+        if (!mayBeNegative && v.signum() < 0) throw ApiException.bad(what + " cannot be negative");
+        if (v.abs().compareTo(new BigDecimal("9999999999.99")) > 0) throw ApiException.bad(what + " is too large");
+        return v.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
 }

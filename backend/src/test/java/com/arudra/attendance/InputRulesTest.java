@@ -110,6 +110,16 @@ class InputRulesTest {
         assertEquals(400, call(HttpMethod.POST, "/api/hr/payroll/payslips/" + slip + "/adjust", admin, Map.of("amount", "999999999999999")).getStatusCode().value());
         assertEquals(400, call(HttpMethod.POST, "/api/hr/payroll/payslips/" + slip + "/adjust", admin, Map.of("amount", "-999999999999999")).getStatusCode().value());
         assertEquals(200, call(HttpMethod.POST, "/api/hr/payroll/payslips/" + slip + "/adjust", admin, Map.of("amount", 250.5)).getStatusCode().value());
+        // HR can hand-edit the pay values; net = base + allowances + bonus - deductions + adjustment
+        assertEquals(200, call(HttpMethod.PUT, "/api/hr/payroll/payslips/" + slip, admin,
+                Map.of("basePay", 1000, "allowances", 100, "bonus", 50, "deductions", 30, "adjustments", -20)).getStatusCode().value());
+        JsonNode edited = ok(call(HttpMethod.GET, "/api/hr/payroll/runs/1/payslips", admin, null)).get(0);
+        assertEquals(1150.0, edited.get("gross").asDouble(), 0.001);
+        assertEquals(1100.0, edited.get("net").asDouble(), 0.001);
+        assertEquals(400, call(HttpMethod.PUT, "/api/hr/payroll/payslips/" + slip, admin,
+                Map.of("basePay", 10, "allowances", 0, "bonus", 0, "deductions", 500, "adjustments", 0)).getStatusCode().value());
+        assertEquals(400, call(HttpMethod.PUT, "/api/hr/payroll/payslips/" + slip, admin,
+                Map.of("basePay", -5, "allowances", 0, "bonus", 0, "deductions", 0, "adjustments", 0)).getStatusCode().value());
     }
 
     @Test @Order(6)

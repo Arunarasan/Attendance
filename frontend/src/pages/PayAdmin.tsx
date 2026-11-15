@@ -438,10 +438,21 @@ export function Payroll() {
     if (warned > 0 && !window.confirm(`${warned} employee(s) have a pay warning (pay of 0 for someone who worked). Generate anyway?`)) return
     try { const r = await post('/api/hr/payroll/generate', { period, mode }); setRun(r.runId); setPrev(null); reload() } catch (e: any) { setErr(e.message) }
   }
-  const adjust = async (id: number) => {
-    const v = prompt('Adjustment amount (negative for a deduction)')
-    if (v === null || isNaN(Number(v))) return
-    await post(`/api/hr/payroll/payslips/${id}/adjust`, { amount: Number(v) }); slips.reload()
+  // Hand-edit one payslip: base pay, allowances, bonus, deductions, adjustment. Net is worked out live.
+  const [pe, setPe] = useState<null | { id: number; name: string; base: string; allow: string; bonus: string; ded: string; adj: string }>(null)
+  const [peErr, setPeErr] = useState('')
+  const editSlip = (p: any) => {
+    const g = (v: any) => String(Number(v ?? 0))
+    setPeErr(''); setPe({ id: p.id, name: p.employeeName, base: String(Math.round((Number(p.gross) - Number(p.allowances) - Number(p.bonus)) * 100) / 100),
+      allow: g(p.allowances), bonus: g(p.bonus), ded: g(p.deductions), adj: g(p.adjustments) })
+  }
+  const peNet = pe ? (Number(pe.base) + Number(pe.allow) + Number(pe.bonus) - Number(pe.ded) + Number(pe.adj)) : 0
+  async function saveSlip(e: FormEvent) {
+    e.preventDefault(); if (!pe) return; setPeErr('')
+    try {
+      await put(`/api/hr/payroll/payslips/${pe.id}`, { basePay: Number(pe.base), allowances: Number(pe.allow), bonus: Number(pe.bonus), deductions: Number(pe.ded), adjustments: Number(pe.adj) })
+      setPe(null); slips.reload()
+    } catch (x: any) { setPeErr(x.message) }
   }
   const rows: any[] | null = run && slips.data ? (slips.data as any[]) : prev
   const total = (k: string) => (rows ?? []).reduce((a, r) => a + Number(r[k] ?? 0), 0)
@@ -464,7 +475,7 @@ export function Payroll() {
     {rows && <Card title={prev ? `Preview for ${period}` : 'Payslips'} hint={prev ? 'Nothing is saved yet. Generate to create the payslips.' : undefined}>
       {prev && rows.some((p: any) => p.warning) && <div className="err" role="alert">Some employees would be paid 0 for hours they worked. See the red notes below before you generate.</div>}
       <div className="scroll"><table className="pa-table">
-        <thead><tr><th>Employee</th><th>Hours</th><th>OT / Extra</th><th>Allow.</th><th>Loss of pay / Short</th><th>Bonus</th><th>Gross</th><th>Deduct.</th>{!prev && <th>Adjust</th>}<th>Net</th><th>Score</th></tr></thead>
+        <thead><tr><th>Employee</th><th>Hours</th><th>OT / Extra</th><th>Allow.</th><th>Loss of pay / Short</th><th>Bonus</th><th>Gross</th><th>Deduct.</th>{!prev && <th>Adjust / Edit</th>}<th>Net</th><th>Score</th></tr></thead>
         <tbody>{rows.map(p => (
           <tr key={p.id ?? p.employeeId}>
             <td><b>{p.employeeName}</b><div className="muted">{(p.payMode ?? p.mode ?? '').toLowerCase()}</div>{p.warning && <div className="err" role="alert" style={{ fontSize: 12, maxWidth: 260 }}>{p.warning}</div>}</td>
@@ -476,12 +487,23 @@ export function Payroll() {
             <td>{Number(p.bonus) > 0 ? money(p.bonus) : '—'}</td>
             <td>{money(p.gross)}</td>
             <td title={p.deductionDetail ?? ''}>{money(p.deductions)}</td>
-            {!prev && <td>{money(p.adjustments)} <button className="at-fix" onClick={() => adjust(p.id)} aria-label="Adjust">±</button></td>}
+            {!prev && <td>{money(p.adjustments)} <button className="at-fix" onClick={() => editSlip(p)} aria-label={`Edit payslip of ${p.employeeName}`} title="Edit pay values">✎</button></td>}
             <td><b>{money(p.net)}</b></td>
             <td>{p.score != null ? <span className={`pa-sc ${levelOf(p.score)}`}>{p.score}</span> : '—'}</td>
           </tr>))}</tbody>
       </table></div>
     </Card>}
+
+    {pe && <div className="overlay center" onMouseDown={e => { if (e.target === e.currentTarget) setPe(null) }}>
+      <form className="modal small" onSubmit={saveSlip}><h2>Edit pay: {pe.name}</h2>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Change the amounts for this payslip. Net pay is worked out for you.</p>
+        {([['base', 'Pay (before allowances and bonus)'], ['allow', 'Allowances'], ['bonus', 'Bonus'], ['ded', 'Deductions'], ['adj', 'Adjustment (+ or −)']] as const).map(([k, label]) => (
+          <div key={k}><label htmlFor={`pe-${k}`}>{label}</label>
+            <input id={`pe-${k}`} type="number" step="0.01" inputMode="decimal" value={pe[k]} onChange={e => setPe({ ...pe, [k]: e.target.value })} required /></div>))}
+        <p style={{ fontSize: 18 }}>Net pay: <b>{money(peNet)}</b></p>
+        {peErr && <div className="err">{peErr}</div>}
+        <div className="actions"><button className="btn" disabled={peNet < 0}>Save</button><button type="button" className="btn ghost" onClick={() => setPe(null)}>Cancel</button></div>
+      </form></div>}
 
     <Card title="Past runs">
       {data?.length === 0 && <p className="muted" style={{ margin: 0 }}>No payroll generated yet.</p>}
