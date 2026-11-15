@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=Asia/Kolkata}
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
     hikari:

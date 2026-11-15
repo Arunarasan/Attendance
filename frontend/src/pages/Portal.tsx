@@ -96,7 +96,7 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
     <section className="pm-card pm-today">
       <div className="pm-today-l">
         <h3>{t('todaysAttendance')}</h3>
-        <div className="pm-time" aria-live="off">{open && last ? elapsed(last, now) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        <div className="pm-time" aria-live="off">{open && last ? elapsed(last, now) : now.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
         {open && last && <div className="pm-sub">{data?.onBreak ? 'On break · timer paused' : 'Working time'}</div>}
         {last && <div className="pm-sub">{fmtTime(last.clockIn)}{last.clockOut ? ` → ${fmtTime(last.clockOut)}` : ''}</div>}
         <span className={`pm-status ${open ? 'in' : ''}`}><ICheckCircle size={16} />{!data ? '…' : open ? (data.onBreak ? t('onBreak') : t('checkedIn')) : data.sessions.length ? t('checkedOut') : t('notCheckedIn')}</span>

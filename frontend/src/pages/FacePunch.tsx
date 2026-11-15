@@ -182,7 +182,7 @@ export default function FacePunch() {
   return (
     <div className={`kiosk${fill ? ' fill-light' : ''}`}>
       {sheet && <PunchCheckSheet issues={sheet.issues} blocked={sheet.blocked} busy={sheet.busy} error={sheet.err} onRetry={closeSheet} onSend={sendToHr} onCancel={closeSheet} />}
-      <div className="clock" style={{ fontSize: 56 }}>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      <div className="clock" style={{ fontSize: 56 }}>{now.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}</div>
       <div style={{ width: 'min(420px, 100%)' }}>
         <video ref={video} autoPlay muted playsInline style={{ width: '100%', borderRadius: 16, transform: 'scaleX(-1)', background: '#000', display: result ? 'none' : 'block' }} />
       </div>

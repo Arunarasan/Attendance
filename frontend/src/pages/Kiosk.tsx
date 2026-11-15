@@ -34,6 +34,8 @@ export default function Kiosk() {
   const [err, setErr] = useState('')
   const [now, setNow] = useState(new Date())
   const [fill, setFill] = useState(false)
+  const [idPhoto, setIdPhoto] = useState<string | null>(null) // photo taken in the ID flow
+  const [idBusy, setIdBusy] = useState(false)
   const clearTimer = useRef<number | undefined>(undefined)
   const video = useRef<HTMLVideoElement>(null)
   const busy = useRef(false) // true while a result is shown or a request is in flight
@@ -42,7 +44,7 @@ export default function Kiosk() {
 
   function home() {
     window.clearTimeout(clearTimer.current)
-    setResult(null); setApproval(null); setAction(null); setErr(''); setId(''); setPhone(''); setMode('face'); busy.current = false
+    setResult(null); setApproval(null); setAction(null); setErr(''); setId(''); setPhone(''); setIdPhoto(null); setMode('face'); busy.current = false
   }
 
   function show(r: Result) {
@@ -95,6 +97,19 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, action, mode])
 
+  // ID flow: camera only (no scanning), so the person can take their own photo
+  useEffect(() => {
+    if (!token || !action || mode !== 'id') return
+    let stop = false
+    let stream: MediaStream | null = null
+    ;(async () => {
+      try { stream = await startCamera(video.current!) }
+      catch (e: any) { if (!stop) setErr(e.message ?? 'Camera unavailable'); return }
+      if (stop) stopCamera(stream)
+    })()
+    return () => { stop = true; stopCamera(stream) }
+  }, [token, action, mode])
+
   async function pair(e: FormEvent) {
     e.preventDefault(); setErr('')
     try {
@@ -104,13 +119,17 @@ export default function Kiosk() {
     } catch (e: any) { setErr(e.message) }
   }
 
-  async function punchId(e: FormEvent) {
+  /** ID + phone + a photo taken here: goes to HR as an approval request; nothing is recorded until HR approves. */
+  async function sendId(e: FormEvent) {
     e.preventDefault(); setErr('')
+    if (!idPhoto) { setErr('Take your photo first'); return }
+    setIdBusy(true)
     try {
-      busy.current = true
-      show(await kioskCall<Result>('/api/public/kiosk/punch-manual', { identifier: id, action }, token!))
-      setId('')
-    } catch (e: any) { busy.current = false; lostToken(e); setErr(e.message) }
+      await kioskCall('/api/public/face-request', { employeeCode: id, phone, action, photo: idPhoto })
+      setApproval({ photo: idPhoto, sent: true, busy: false })
+      window.clearTimeout(clearTimer.current)
+      clearTimer.current = window.setTimeout(home, 5000)
+    } catch (e: any) { setErr(e.message) } finally { setIdBusy(false) }
   }
 
   async function sendApproval(e: FormEvent) {
@@ -139,14 +158,14 @@ export default function Kiosk() {
     )
   }
 
-  const clock = <div className="clock" style={{ fontSize: 56 }}>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+  const clock = <div className="clock" style={{ fontSize: 56 }}>{now.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}</div>
 
   // ---- Home: Check in / Check out ----
   if (!action) {
     return (
       <div className="kiosk">
         {clock}
-        <div className="muted">{now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <div className="muted">{now.toLocaleDateString([], { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' })}</div>
         <div className="kiosk-home">
           <button className="btn big kiosk-in" onClick={() => setAction('IN')}>Check in</button>
           <button className="btn big kiosk-out" onClick={() => setAction('OUT')}>Check out</button>
@@ -170,9 +189,9 @@ export default function Kiosk() {
       <div className="kiosk-phone">
         <div className="kiosk-phone-head"><strong>{verb}</strong><button className="btn ghost" onClick={home}>Cancel</button></div>
 
-        {mode === 'face' && (
-          <video ref={video} autoPlay muted playsInline className="kiosk-video" style={{ display: result || approval ? 'none' : 'block' }} />
-        )}
+        <video ref={video} autoPlay muted playsInline className="kiosk-video"
+          style={{ display: result || approval || (mode === 'id' && idPhoto) ? 'none' : 'block' }} />
+        {mode === 'id' && idPhoto && !result && !approval && <img src={idPhoto} alt="Your photo" className="kiosk-video" />}
 
         {result && !approval && (
           <div className={`kiosk-card ${tone}`}>
@@ -181,7 +200,7 @@ export default function Kiosk() {
               : result.employeeName && <div className="kiosk-photo initials">{result.employeeName.slice(0, 1)}</div>}
             <div className="kiosk-title">{title}</div>
             {result.employeeName && <div className="kiosk-name">{result.employeeName}</div>}
-            <div className="muted">{ok ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : result.message}</div>
+            <div className="muted">{ok ? now.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : result.message}</div>
             {ok && result.flagged && <div className="muted" style={{ fontSize: 15 }}>Recorded. HR will confirm it.</div>}
             {miss && (
               <div className="kiosk-actions">
@@ -213,10 +232,16 @@ export default function Kiosk() {
         {!result && !approval && (mode === 'face' ? (
           <div className="muted" style={{ fontSize: 20 }}>{hint}</div>
         ) : (
-          <form onSubmit={punchId}>
-            <label htmlFor="kiosk-f1">Employee ID or phone</label>
-            <input id="kiosk-f1" value={id} onChange={e => setId(e.target.value)} autoFocus required style={{ fontSize: 22, textAlign: 'center' }} />
-            <p><button className="btn big">{verb}</button></p>
+          <form onSubmit={sendId}>
+            <label htmlFor="kiosk-f1">Employee ID</label>
+            <input id="kiosk-f1" value={id} onChange={e => setId(e.target.value)} autoFocus required />
+            <label htmlFor="kiosk-f2">Phone number</label>
+            <input id="kiosk-f2" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+            <p className="row">
+              <button type="button" className="btn ghost" onClick={() => idPhoto ? setIdPhoto(null) : (snapFrame(video.current) ? setIdPhoto(snapFrame(video.current)) : setErr('The camera is not ready'))}>{idPhoto ? 'Retake photo' : 'Take photo'}</button>
+              <button className="btn" disabled={idBusy || !idPhoto}>{idBusy ? 'Sending…' : 'Send for approval'}</button>
+            </p>
+            <p className="muted" style={{ fontSize: 14 }}>Your photo goes to HR. Nothing is recorded until HR approves it.</p>
           </form>
         ))}
 
