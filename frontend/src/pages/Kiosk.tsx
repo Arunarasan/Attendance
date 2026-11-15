@@ -36,6 +36,7 @@ export default function Kiosk() {
   const [fill, setFill] = useState(false)
   const [idPhoto, setIdPhoto] = useState<string | null>(null) // photo taken in the ID flow
   const [idBusy, setIdBusy] = useState(false)
+  const [camReady, setCamReady] = useState(false)
   const clearTimer = useRef<number | undefined>(undefined)
   const video = useRef<HTMLVideoElement>(null)
   const busy = useRef(false) // true while a result is shown or a request is in flight
@@ -67,6 +68,8 @@ export default function Kiosk() {
     ;(async () => {
       try {
         await loadFace()
+        // The person may have switched to the ID flow while the models were loading: do not grab the shared <video> from them.
+        if (stop) return
         stream = await startCamera(video.current!)
       } catch (e: any) {
         if (!stop) { setHint(e.message ?? 'Camera unavailable'); setMode('id') }
@@ -189,7 +192,7 @@ export default function Kiosk() {
       <div className="kiosk-phone">
         <div className="kiosk-phone-head"><strong>{verb}</strong><button className="btn ghost" onClick={home}>Cancel</button></div>
 
-        <video ref={video} autoPlay muted playsInline className="kiosk-video"
+        <video ref={video} autoPlay muted playsInline className="kiosk-video" onPlaying={() => setCamReady(true)} onEmptied={() => setCamReady(false)}
           style={{ display: result || approval || (mode === 'id' && idPhoto) ? 'none' : 'block' }} />
         {mode === 'id' && idPhoto && !result && !approval && <img src={idPhoto} alt="Your photo" className="kiosk-video" />}
 
@@ -238,7 +241,7 @@ export default function Kiosk() {
             <label htmlFor="kiosk-f2">Phone number</label>
             <input id="kiosk-f2" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
             <p className="row">
-              <button type="button" className="btn ghost" onClick={() => idPhoto ? setIdPhoto(null) : (snapFrame(video.current) ? setIdPhoto(snapFrame(video.current)) : setErr('The camera is not ready'))}>{idPhoto ? 'Retake photo' : 'Take photo'}</button>
+              <button type="button" className="btn ghost" disabled={!idPhoto && !camReady} onClick={() => { if (idPhoto) { setIdPhoto(null); return } const p = snapFrame(video.current); if (p) { setIdPhoto(p); setErr('') } else setErr('The camera is not ready. Allow camera access and try again.') }}>{idPhoto ? 'Retake photo' : camReady ? 'Take photo' : 'Starting camera…'}</button>
               <button className="btn" disabled={idBusy || !idPhoto}>{idBusy ? 'Sending…' : 'Send for approval'}</button>
             </p>
             <p className="muted" style={{ fontSize: 14 }}>Your photo goes to HR. Nothing is recorded until HR approves it.</p>
