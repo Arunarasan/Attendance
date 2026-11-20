@@ -43,11 +43,11 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
   useEffect(() => { load() }, [load])
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
 
-  async function punch(action: 'in' | 'out' | 'break-start' | 'break-end', sendNote?: string) {
+  async function punch(action: 'in' | 'out', sendNote?: string) {
     setBusy(true); setErr(''); setNote('')
     try {
       let body: Record<string, unknown> = {}
-      if (action === 'in' || action === 'out') {
+      {
         if (sendNote !== undefined && captured.current) {
           body = { ...captured.current }          // the same face and location the person already gave
         } else {
@@ -72,7 +72,7 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
       await load()
       onChange()
     } catch (e: any) {
-      if ((action === 'in' || action === 'out') && e instanceof ApiError && (e.code === 'NEEDS_CONFIRMATION' || e.code === 'PUNCH_BLOCKED')) {
+      if (e instanceof ApiError && (e.code === 'NEEDS_CONFIRMATION' || e.code === 'PUNCH_BLOCKED')) {
         setSheet({ action, issues: e.data?.issues ?? [], blocked: e.code === 'PUNCH_BLOCKED', err: '' }); setNote('')
       } else if (sendNote !== undefined && sheet) {
         setSheet({ ...sheet, err: e.message })
@@ -97,21 +97,20 @@ function ClockWidget({ onChange }: { onChange: () => void }) {
       <div className="pm-today-l">
         <h3>{t('todaysAttendance')}</h3>
         <div className="pm-time" aria-live="off">{open && last ? elapsed(last, now) : now.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        {open && last && <div className="pm-sub">{data?.onBreak ? 'On break · timer paused' : 'Working time'}</div>}
+        {open && last && <div className="pm-sub">Working time</div>}
         {last && <div className="pm-sub">{fmtTime(last.clockIn)}{last.clockOut ? ` → ${fmtTime(last.clockOut)}` : ''}</div>}
-        <span className={`pm-status ${open ? 'in' : ''}`}><ICheckCircle size={16} />{!data ? '…' : open ? (data.onBreak ? t('onBreak') : t('checkedIn')) : data.sessions.length ? t('checkedOut') : t('notCheckedIn')}</span>
+        <span className={`pm-status ${open ? 'in' : ''}`}><ICheckCircle size={16} />{!data ? '…' : open ? t('checkedIn') : data.sessions.length ? t('checkedOut') : t('notCheckedIn')}</span>
       </div>
       {data && <button className={`pm-punch ${open ? 'out' : ''}`} disabled={busy} onClick={() => punch(open ? 'out' : 'in')}>
         <IFinger size={38} /><span>{open ? t('checkOut') : data.sessions.length ? t('checkInAgain') : t('checkIn')}</span></button>}
     </section>
-    {data?.isOpen && <button className="pm-break" disabled={busy} onClick={() => punch(data.onBreak ? 'break-end' : 'break-start')}>{data.onBreak ? t('endBreak') : t('startBreak')}</button>}
     {err && <div className="err">{err}</div>}
     {note && <div className="msg">{note}</div>}
     {day && <p className="pm-muted">Paid so far today: {fmtHours(day.workedMinutes)}{day.overtimeMinutes > 0 && ` (overtime ${fmtHours(day.overtimeMinutes)})`}</p>}
     {data && data.sessions.length > 0 && <section className="pm-card pm-list">
       {data.sessions.map(s => (
         <div key={s.id} className="pm-li"><span className="pm-ok"><ICheckCircle size={20} /></span>
-          <span className="pm-li-t">{fmtTime(s.clockIn)} → {s.clockOut ? fmtTime(s.clockOut) : 'open'}{s.breakMinutes > 0 && ` · break ${s.breakMinutes}m`}</span>
+          <span className="pm-li-t">{fmtTime(s.clockIn)} → {s.clockOut ? fmtTime(s.clockOut) : 'open'}</span>
           <span className={`pill ${s.approvalStatus === 'APPROVED' ? 'ok' : 'warn'}`} title={s.flagReason ?? ''}>{s.approvalStatus.toLowerCase()}</span></div>
       ))}
     </section>}
