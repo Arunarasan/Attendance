@@ -20,6 +20,13 @@ export function setAuth(a: Auth | null) {
   }
 }
 
+/**
+ * Where the API lives. Empty (the default) means the same address as the page: the backend serves the app, or a dev proxy forwards /api.
+ * Set VITE_API_BASE (for example https://attendance-nn00.onrender.com) when the app is hosted separately from the backend.
+ */
+const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(/\/+$/, '')
+export const apiUrl = (path: string) => (API_BASE && path.startsWith('/') ? API_BASE + path : path)
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: any) {
     super(message)
@@ -34,7 +41,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
     if (auth.kind === 'jwt') headers['Authorization'] = `Bearer ${auth.token}`
     else headers['X-Device-Token'] = auth.token
   }
-  const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+  const res = await fetch(apiUrl(path), { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   const text = await res.text()
   let data: any = null
   if (text) {
@@ -68,7 +75,7 @@ export async function fetchRemainingPages(path: string, headers: Record<string, 
   const all = [...first]
   const sep = path.includes('?') ? '&' : '?'
   while (all.length < total) {
-    const res = await doFetch(`${path}${sep}limit=${Math.max(first.length, 1)}&offset=${all.length}`, { method: 'GET', headers })
+    const res = await doFetch(apiUrl(`${path}${sep}limit=${Math.max(first.length, 1)}&offset=${all.length}`), { method: 'GET', headers })
     if (!res.ok) throw new ApiError(res.status, 'ERROR', `Request failed (${res.status})`)
     let page: any
     try { page = JSON.parse(await res.text()) } catch { throw new ApiError(res.status, 'BAD_RESPONSE', 'The server sent an unexpected reply (not JSON).') }
@@ -83,7 +90,7 @@ export async function blobUrl(path: string): Promise<string> {
   const auth = getAuth()
   const headers: Record<string, string> = {}
   if (auth) headers[auth.kind === 'jwt' ? 'Authorization' : 'X-Device-Token'] = auth.kind === 'jwt' ? `Bearer ${auth.token}` : auth.token
-  const res = await fetch(path, { headers })
+  const res = await fetch(apiUrl(path), { headers })
   if (!res.ok) throw new ApiError(res.status, 'ERROR', `Request failed (${res.status})`)
   return URL.createObjectURL(await res.blob())
 }

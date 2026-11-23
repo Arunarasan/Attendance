@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { loadFace, scanForFace, snapFrame, startCamera, stopCamera } from '../lib/face'
+import { apiUrl } from '../lib/api'
 
 const KEY = 'attendance.kiosk'
 type Result = { outcome: string; employeeName: string | null; flagged: boolean; message: string; photo?: string | null }
 type Action = 'IN' | 'OUT'
 
 async function kioskCall<T>(path: string, body: unknown, token?: string): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Kiosk-Token': token } : {}) },
     body: JSON.stringify(body),

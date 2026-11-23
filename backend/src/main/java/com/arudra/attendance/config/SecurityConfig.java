@@ -86,6 +86,8 @@ public class SecurityConfig {
         c.setAllowedOrigins(List.of(props.corsOrigins().split(",")));
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
+        // The app reads the full list size from this header when it is hosted on a different address than the API.
+        c.setExposedHeaders(List.of("X-Total-Count"));
         UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
         s.registerCorsConfiguration("/**", c);
         return s;

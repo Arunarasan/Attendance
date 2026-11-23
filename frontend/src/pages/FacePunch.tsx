@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadFace, scanForFace, startCamera, stopCamera, snapFrame } from '../lib/face'
 import { wifiBssid } from '../lib/deviceKey'
+import { apiUrl } from '../lib/api'
 
 type Result = { outcome: string; employeeName: string | null; flagged: boolean; message: string }
 type Pos = { lat: number; lng: number; accuracy: number }
@@ -37,7 +38,7 @@ function PhotoRequest({ video, pos, onClose }: { video: React.RefObject<HTMLVide
     setBusy(true); setErr('')
     try {
       const p = pos.current
-      const res = await fetch('/api/public/face-request', {
+      const res = await fetch(apiUrl('/api/public/face-request'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeCode: code, phone, action, photo, lat: p?.lat, lng: p?.lng, accuracy: p?.accuracy, bssid: wifiBssid() }),
@@ -123,7 +124,7 @@ export default function FacePunch() {
           setHint('Checking…')
           try {
             const p = pos.current
-            const res = await fetch('/api/public/face-punch', {
+            const res = await fetch(apiUrl('/api/public/face-punch'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ descriptor, lat: p?.lat, lng: p?.lng, accuracy: p?.accuracy, bssid: wifiBssid() }),
@@ -164,7 +165,7 @@ export default function FacePunch() {
     setSheet({ ...sheet, busy: true, err: '' })
     try {
       const p = pos.current
-      const res = await fetch('/api/public/face-punch', {
+      const res = await fetch(apiUrl('/api/public/face-punch'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ descriptor: sheet.descriptor, lat: p?.lat, lng: p?.lng, accuracy: p?.accuracy, bssid: wifiBssid(), confirm: true, note, photo: sheet.photo }),
       })

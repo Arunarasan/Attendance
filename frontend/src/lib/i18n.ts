@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { apiUrl } from './api'
 
 export type Lang = 'en' | 'ta' | 'hi'
 export const LANGS: [Lang, string][] = [['en', 'English'], ['ta', 'தமிழ்'], ['hi', 'हिन्दी']]
@@ -21,7 +22,7 @@ export function setCompanyDefault(l: string) {
 }
 /** Asks the server for the company default once, before anyone signs in. */
 export function loadCompanyLanguage() {
-  fetch('/api/public/config').then(r => (r.ok ? r.json() : null)).then(c => { if (c) setCompanyDefault(c.defaultLanguage) }).catch(() => {})
+  fetch(apiUrl('/api/public/config')).then(r => (r.ok ? r.json() : null)).then(c => { if (c) setCompanyDefault(c.defaultLanguage) }).catch(() => {})
 }
 export function setLang(l: Lang) {
   try { localStorage.setItem(KEY, l) } catch { /* storage unavailable */ }
