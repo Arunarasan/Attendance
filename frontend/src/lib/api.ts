@@ -36,7 +36,17 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
   }
   const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  let data: any = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      // An HTML page (starting "<!DOCTYPE") instead of JSON: the server is waking up or restarting, a gateway error page, or /api is not routed to the backend.
+      throw new ApiError(res.status, 'BAD_RESPONSE', res.status >= 500 || res.status === 0
+        ? 'The server is starting up or unavailable. Wait a minute and try again.'
+        : 'The server sent an unexpected reply (not JSON). Check that the app is connected to the backend, then try again.')
+    }
+  }
   if (!res.ok) {
     if (res.status === 401 && auth && !path.startsWith('/api/public')) {
       setAuth(null)
@@ -60,7 +70,8 @@ export async function fetchRemainingPages(path: string, headers: Record<string, 
   while (all.length < total) {
     const res = await doFetch(`${path}${sep}limit=${Math.max(first.length, 1)}&offset=${all.length}`, { method: 'GET', headers })
     if (!res.ok) throw new ApiError(res.status, 'ERROR', `Request failed (${res.status})`)
-    const page = JSON.parse(await res.text())
+    let page: any
+    try { page = JSON.parse(await res.text()) } catch { throw new ApiError(res.status, 'BAD_RESPONSE', 'The server sent an unexpected reply (not JSON).') }
     if (!Array.isArray(page) || page.length === 0) break // the list shrank while we were reading: stop with what we have
     all.push(...page)
   }
