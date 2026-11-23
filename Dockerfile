@@ -1,8 +1,18 @@
+# Stage 1: build the web app (the backend serves it, so no separate static site or /api rewrite is needed).
+FROM node:20-alpine AS web
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: build the backend and bundle the web app into it.
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY backend/pom.xml .
 RUN mvn -q -B dependency:go-offline
 COPY backend/src ./src
+COPY --from=web /web/dist ./src/main/resources/static
 RUN mvn -q -B package -DskipTests
 
 FROM eclipse-temurin:17-jre

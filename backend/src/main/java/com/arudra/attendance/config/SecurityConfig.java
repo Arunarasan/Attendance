@@ -28,6 +28,11 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
+    private static final String API_CSP = "default-src 'none'; frame-ancestors 'none'";
+    private static final String PAGE_CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            + "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data:; "
+            + "worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -43,7 +48,19 @@ public class SecurityConfig {
                 // HSTS is sent on every response (the app usually sits behind a TLS-terminating proxy, so the request itself
                 // looks like plain HTTP); browsers ignore it over HTTP, so local development is unaffected.
                 .headers(h -> h
-                        .contentSecurityPolicy(c -> c.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
+                        // The API returns only JSON and images (locked down completely). The web app's own pages need to load their
+                        // scripts, styles, fonts and camera/face models, so they get a policy that allows only this site plus Google Fonts.
+                        .cacheControl(c -> c.disable())
+                        .addHeaderWriter((req, res) -> {
+                            boolean api = req.getRequestURI().startsWith("/api/");
+                            res.setHeader("Content-Security-Policy", api ? API_CSP : PAGE_CSP);
+                            // API answers are never cached; the app's own files are re-checked by the resource handler (cheap 304s).
+                            if (api) {
+                                res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+                                res.setHeader("Pragma", "no-cache");
+                                res.setHeader("Expires", "0");
+                            }
+                        })
                         .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                         .httpStrictTransportSecurity(s -> s.requestMatcher(org.springframework.security.web.util.matcher.AnyRequestMatcher.INSTANCE)
                                 .maxAgeInSeconds(31_536_000)))
@@ -51,7 +68,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/employee-login", "/api/public/**", "/error").permitAll()
                         .requestMatchers("/api/hr/**").hasAnyRole("HR", "ADMIN")
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        // Everything else is the web app itself (pages, scripts, images, face models); it holds no data.
+                        .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
                     res.setStatus(401);
                     res.setContentType("application/json");

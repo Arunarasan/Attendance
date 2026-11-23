@@ -152,7 +152,7 @@ class InputRulesTest {
 
     @Test @Order(8)
     void wrongMethodUsesTheAppErrorFormat() throws Exception {
-        ResponseEntity<String> r = call(HttpMethod.DELETE, "/api/hr/employees/" + empId, admin, null);
+        ResponseEntity<String> r = call(HttpMethod.PATCH, "/api/hr/employees/" + empId, admin, null);
         assertEquals(405, r.getStatusCode().value());
         assertEquals("METHOD_NOT_ALLOWED", json.readTree(r.getBody()).get("code").asText());
     }
