@@ -10,12 +10,14 @@ RUN npm run build
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY backend/pom.xml .
-# Maven Central sometimes answers 429 (too many requests) to shared build servers, so retry with a pause instead of failing the deploy.
-ENV MVN="mvn -q -B -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=30"
-RUN for i in 1 2 3 4 5; do $MVN dependency:go-offline && break; echo "retry $i"; sleep $((i * 20)); done
+# Maven Central rate-limits (429) shared build servers such as Render's, so alternate between Google's mirror of central and
+# central itself, pausing between attempts. A mirror that lacks an artifact simply fails that attempt and the next one uses central.
+RUN echo '<settings><mirrors><mirror><id>gcs-central</id><mirrorOf>central</mirrorOf><url>https://maven-central.storage-download.googleapis.com/maven2/</url></mirror></mirrors></settings>' > /tmp/mirror-settings.xml
+ENV MVN_OPTS="-q -B -Dmaven.wagon.http.retryHandler.count=5"
+RUN for i in 1 2 3 4 5 6; do if [ $((i % 2)) -eq 1 ]; then S="-s /tmp/mirror-settings.xml"; else S=""; fi; mvn $MVN_OPTS $S dependency:go-offline && break; echo "retry $i"; sleep $((i * 15)); done
 COPY backend/src ./src
 COPY --from=web /web/dist ./src/main/resources/static
-RUN for i in 1 2 3 4 5; do $MVN package -DskipTests && break; echo "retry $i"; sleep $((i * 20)); done; test -n "$(ls target/attendance-*.jar 2>/dev/null)"
+RUN for i in 1 2 3 4 5 6; do if [ $((i % 2)) -eq 1 ]; then S="-s /tmp/mirror-settings.xml"; else S=""; fi; mvn $MVN_OPTS $S package -DskipTests && break; echo "retry $i"; sleep $((i * 15)); done; test -n "$(ls target/attendance-*.jar 2>/dev/null)"
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
