@@ -5,6 +5,7 @@ import EmployeesTab from './employees/EmployeesTab'
 import Dashboard from './Dashboard'
 import { Holidays, LeaveAdmin } from './LeaveHolidays'
 import { Corrections, Register } from './AttendanceAdmin'
+import AttendanceReport from './AttendanceReport'
 import { Approvals, PhotoRequests, WeekOffRequests } from './ApprovalsAdmin'
 import { Locations, Networks } from './LocationsAdmin'
 import { AppInfo, GeneralSettings, LanguageSettings, LopReview, PaySettings, Payroll, Scores } from './PayAdmin'
@@ -48,7 +49,7 @@ function Kiosks() {
 }
 
 const TABS: Record<string, () => JSX.Element> = {
-  approve: Approvals, photo: PhotoRequests, weekoff: WeekOffRequests, register: Register, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
+  approve: Approvals, photo: PhotoRequests, weekoff: WeekOffRequests, register: Register, report: () => <AttendanceReport />, loc: Locations, net: Networks, fix: Corrections, phones: Phones,
   kiosks: Kiosks, leave: LeaveAdmin, holidays: Holidays, pay: Payroll, lop: LopReview, score: Scores, paycfg: PaySettings, gen: GeneralSettings, info: AppInfo, lang: LanguageSettings,
 }
 
@@ -57,7 +58,7 @@ type Group = { key: string; label: string; icon: ReactNode; tabs: [string, strin
 const GROUPS: Group[] = [
   { key: 'dash', label: 'h_dashboard', icon: <IHome />, tabs: [] },
   { key: 'emps', label: 'h_employees', icon: <IUsers />, tabs: [] },
-  { key: 'att', label: 'h_attendance', icon: <ICalCheck />, tabs: [['register', 'h_tabRegister'], ['fix', 'h_tabCorrections']] },
+  { key: 'att', label: 'h_attendance', icon: <ICalCheck />, tabs: [['register', 'h_tabRegister'], ['report', 'h_tabReport'], ['fix', 'h_tabCorrections']] },
   { key: 'leave', label: 'h_leaveHol', icon: <ICal />, tabs: [['leave', 'h_tabLeave'], ['holidays', 'h_tabHolidays']] },
   { key: 'appr', label: 'h_approvals', icon: <ICheckSq />, tabs: [['approve', 'h_tabToApprove'], ['photo', 'h_tabPhoto'], ['weekoff', 'h_tabWeekly']] },
   { key: 'loc', label: 'h_locations', icon: <IPin />, tabs: [['loc', 'h_tabLocations'], ['net', 'h_tabWifi']] },

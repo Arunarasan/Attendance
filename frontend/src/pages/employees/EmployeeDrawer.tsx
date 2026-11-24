@@ -3,9 +3,10 @@ import { del, post, put } from '../../lib/api'
 import FaceEnrol from '../FaceEnrol'
 import EmpPayExtras from './EmpPayExtras'
 import EmpOffDays from './EmpOffDays'
+import AttendanceReport from '../AttendanceReport'
 import { BINDING_LABEL, Confirm, copyText, Drawer, Emp, Field, initials, METHOD_LABEL, Modal, randomPassword } from './ui'
 
-type Tab = 'profile' | 'pay' | 'access'
+type Tab = 'profile' | 'attendance' | 'pay' | 'access'
 
 export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
   { emp: Emp; meId: number; onClose: () => void; onChanged: () => void; toast: (t: string, bad?: boolean) => void }) {
@@ -92,7 +93,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
         <button className="btn ghost" onClick={close} aria-label="Close">✕</button>
       </div>
       <div className="subtabs">
-        {(['profile', 'pay', 'access'] as Tab[]).map(t => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t === 'profile' ? 'Profile' : t === 'pay' ? 'Pay' : 'Access'}</button>)}
+        {(['profile', 'attendance', 'pay', 'access'] as Tab[]).map(t => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t === 'profile' ? 'Profile' : t === 'attendance' ? 'Attendance' : t === 'pay' ? 'Pay' : 'Access'}</button>)}
       </div>
 
       {tab === 'profile' && <div className="fgrid">
@@ -107,6 +108,8 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
         <Field label="Phone binding" hint="Locks punches to one approved phone"><select value={p.deviceBindingMode} onChange={set('deviceBindingMode')}>
           <option value="">Company default</option>{Object.entries(BINDING_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       </div>}
+
+      {tab === 'attendance' && <AttendanceReport employeeId={emp.id} />}
 
       {tab === 'pay' && <div className="fgrid">
         <Field label="Hourly rate" error={errors.hourlyRate}><input type="number" min="0" value={p.hourlyRate} onChange={set('hourlyRate')} /></Field>

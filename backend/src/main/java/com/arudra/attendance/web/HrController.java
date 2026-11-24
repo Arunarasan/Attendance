@@ -37,10 +37,12 @@ public class HrController {
     private final NetworkService networks;
     private final FaceRequestService faceRequests;
     private final ClientIp clientIp;
+    private final ReportService reports;
 
     public HrController(EmployeeService employees, TimeService time, CorrectionService corrections, DeviceService devices,
                         KioskService kiosks, AppPairingService pairing, PayrollService payroll, JdbcClient db,
-                        NetworkService networks, ClientIp clientIp, FaceRequestService faceRequests) {
+                        NetworkService networks, ClientIp clientIp, FaceRequestService faceRequests, ReportService reports) {
+        this.reports = reports;
         this.faceRequests = faceRequests;
         this.networks = networks;
         this.clientIp = clientIp;
@@ -190,6 +192,10 @@ public class HrController {
     public List<M.RegisterRow> register(@RequestParam LocalDate date) { return employees.register(date); }
 
     // corrections
+    /** Monthly register: every active employee, or one employee (any status) when employeeId is given. */
+    @GetMapping("/attendance/report")
+    public ReportService.Report report(@RequestParam String month, @RequestParam(required = false) Long employeeId) { return reports.month(month, employeeId); }
+
     @GetMapping("/attendance/corrections") public List<M.CorrectionView> pendingCorrections() { return corrections.pending(); }
 
     @PostMapping("/attendance/corrections/{id}/approve")
