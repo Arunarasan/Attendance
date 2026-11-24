@@ -19,7 +19,8 @@ public final class M {
     /** HR list row: the employee plus quick status flags for the Employees tab. */
     public record EmpRow(long id, String employeeCode, String name, String email, String phone, String role,
                          boolean active, BigDecimal hourlyRate, BigDecimal baseSalary, String attendanceMethod,
-                         String deviceBindingMode, boolean faceEnrolled, boolean appPaired, boolean phoneApproved) {}
+                         String deviceBindingMode, boolean faceEnrolled, boolean appPaired, boolean phoneApproved,
+                         boolean requireLocation, boolean requireWifi, boolean allowKiosk) {}
 
     public record Location(long id, String name, double latitude, double longitude, int radiusMeters, boolean active) {}
 

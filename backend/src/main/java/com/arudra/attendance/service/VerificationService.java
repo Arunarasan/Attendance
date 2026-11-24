@@ -53,8 +53,8 @@ public class VerificationService {
         List<Issue> issues = new ArrayList<>();
         List<String> methods = new ArrayList<>();
         Double[] geo = new Double[2]; // distance, locationId
-        geoCheck(in, reasons, issues, methods, geo);
-        networkCheck(in, reasons, issues, methods);
+        if (checkOn(emp.id(), "require_location")) geoCheck(in, reasons, issues, methods, geo); else methods.add("NONE");
+        if (checkOn(emp.id(), "require_wifi")) networkCheck(in, reasons, issues, methods);
         methods.add("FACE");
         if (weakMatch) add(reasons, issues, "FACE_WEAK", "Weak face match");
         return new Eval(!reasons.isEmpty(), reasons.isEmpty() ? null : String.join("; ", reasons), String.join("+", methods),
@@ -86,6 +86,11 @@ public class VerificationService {
         }
     }
 
+    /** A per-employee switch on the employees table (true unless HR turned it off). */
+    private boolean checkOn(long employeeId, String column) {
+        return db.sql("SELECT " + column + " FROM employees WHERE id = ?").param(employeeId).query(Boolean.class).optional().orElse(true);
+    }
+
     private void networkCheck(PunchInput in, List<String> reasons, List<Issue> issues, List<String> methods) {
         switch (networks.check(in.clientIp(), in.bssid())) {
             case MATCH -> methods.add("WIFI");
@@ -104,7 +109,7 @@ public class VerificationService {
 
         if (!"OFFICE_DEVICE".equals(emp.attendanceMethod())) {
             // location
-            List<M.Location> locs = db.sql("SELECT id, name, latitude, longitude, radius_meters, active FROM attendance_locations WHERE active = TRUE")
+            List<M.Location> locs = !checkOn(emp.id(), "require_location") ? List.<M.Location>of() : db.sql("SELECT id, name, latitude, longitude, radius_meters, active FROM attendance_locations WHERE active = TRUE")
                     .query(M.Location.class).list();
             if (locs.isEmpty()) {
                 methods.add("NONE");
@@ -128,7 +133,7 @@ public class VerificationService {
             }
 
             // office WiFi / network
-            switch (networks.check(in.clientIp(), in.bssid())) {
+            switch (!checkOn(emp.id(), "require_wifi") ? NetworkService.Result.NOT_CONFIGURED : networks.check(in.clientIp(), in.bssid())) {
                 case MATCH -> methods.add("WIFI");
                 case MISMATCH -> { methods.add("WIFI"); add(reasons, issues, "NETWORK", "Not on the office network"); }
                 case NOT_CONFIGURED -> { }

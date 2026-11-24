@@ -45,9 +45,18 @@ public class EmployeeService {
                        e.attendance_method, e.device_binding_mode,
                        EXISTS (SELECT 1 FROM employee_face_templates f WHERE f.employee_id = e.id) AS face_enrolled,
                        EXISTS (SELECT 1 FROM app_tokens t WHERE t.employee_id = e.id AND t.revoked_at IS NULL) AS app_paired,
-                       EXISTS (SELECT 1 FROM user_devices d WHERE d.employee_id = e.id AND d.status = 'APPROVED') AS phone_approved
+                       EXISTS (SELECT 1 FROM user_devices d WHERE d.employee_id = e.id AND d.status = 'APPROVED') AS phone_approved,
+                       e.require_location, e.require_wifi, e.allow_kiosk
                 FROM employees e ORDER BY e.name""").query(M.EmpRow.class).list();
     }
+
+    /** Per-employee switches: check location, check the office network, allow punching at a kiosk. Null leaves a switch as it is. */
+    public void setChecks(long id, Boolean requireLocation, Boolean requireWifi, Boolean allowKiosk) {
+        get(id);
+        db.sql("UPDATE employees SET require_location = COALESCE(?, require_location), require_wifi = COALESCE(?, require_wifi), allow_kiosk = COALESCE(?, allow_kiosk) WHERE id = ?")
+                .param(requireLocation).param(requireWifi).param(allowKiosk).param(id).update();
+    }
+
 
     public M.EmpView get(long id) {
         return db.sql(VIEW + " WHERE id = ?").param(id).query(M.EmpView.class).optional().orElseThrow(() -> ApiException.notFound("Employee"));

@@ -87,4 +87,5 @@ export type Emp = {
   id: number; employeeCode: string; name: string; email: string; phone: string; role: string; active: boolean
   hourlyRate: number; baseSalary: number; attendanceMethod: string; deviceBindingMode: string | null
   faceEnrolled: boolean; appPaired: boolean; phoneApproved: boolean
+  requireLocation?: boolean; requireWifi?: boolean; allowKiosk?: boolean
 }

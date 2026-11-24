@@ -124,6 +124,7 @@ public class KioskService {
         long kioskId = authenticate(token);
         Who w = identify(descriptor);
         if (w.failure() != null) return w.failure();
+        if (!kioskAllowed(w.employeeId())) return kioskOff();
         PunchResult r = toggle(w.employeeId(), kioskId, "KIOSK", new Eval(w.weak(), w.weak() ? "Weak face match" : null, "KIOSK", null, null, null, null, null, null, w.distance(), List.of()), null, null, intent);
         learnFrom(r, w, descriptor);
         return r;
@@ -164,6 +165,14 @@ public class KioskService {
         if (done && !r.flagged() && !w.weak() && w.employeeId() != null) faces.learn(w.employeeId(), descriptor);
     }
 
+    private boolean kioskAllowed(long employeeId) {
+        return db.sql("SELECT allow_kiosk FROM employees WHERE id = ?").param(employeeId).query(Boolean.class).optional().orElse(true);
+    }
+
+    private static PunchResult kioskOff() {
+        return new PunchResult("NOT_ALLOWED", null, null, false, "Kiosk punching is turned off for you. Use your phone or ask HR.");
+    }
+
     /** Fallback: typed employee code or phone. Auto-approved only if a supplied face also matches that employee. */
     public PunchResult punchManual(String token, String identifier, double[] descriptor) { return punchManual(token, identifier, descriptor, null); }
 
@@ -173,6 +182,7 @@ public class KioskService {
         Long empId = db.sql("SELECT id FROM employees WHERE active = TRUE AND (LOWER(employee_code) = LOWER(?) OR phone = ?)")
                 .param(id).param(EmployeeService.digits(id)).query(Long.class).optional().orElse(null);
         if (empId == null) return new PunchResult("NOT_RECOGNISED", null, null, false, "No employee with that ID");
+        if (!kioskAllowed(empId)) return kioskOff();
         Double dist = FaceService.valid(descriptor) ? faces.distanceTo(empId, descriptor) : null;
         boolean matched = dist != null && dist <= cfg.faceWeak();
         return toggle(empId, kioskId, "KIOSK_MANUAL", new Eval(!matched, matched ? null : "Manual punch without face match", "KIOSK_MANUAL", null, null, null, null, null, null, dist, List.of()), null, null, intent);

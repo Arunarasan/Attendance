@@ -85,6 +85,15 @@ public class HrController {
         return Map.of("status", "DELETED");
     }
 
+    public record ChecksBody(Boolean requireLocation, Boolean requireWifi, Boolean allowKiosk) {}
+
+    @PutMapping("/employees/{id}/checks")
+    public Map<String, String> checks(@AuthenticationPrincipal Actor a, @PathVariable long id, @RequestBody ChecksBody b) {
+        adminOnly(a, employees.get(id).role());
+        employees.setChecks(id, b.requireLocation(), b.requireWifi(), b.allowKiosk());
+        return Map.of("status", "SAVED");
+    }
+
     @PostMapping("/employees/{id}/app-code")
     public Map<String, String> appCode(@AuthenticationPrincipal Actor a, @PathVariable long id) {
         adminOnly(a, employees.get(id).role());

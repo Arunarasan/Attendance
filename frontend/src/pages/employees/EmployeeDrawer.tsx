@@ -4,6 +4,7 @@ import FaceEnrol from '../FaceEnrol'
 import EmpPayExtras from './EmpPayExtras'
 import EmpOffDays from './EmpOffDays'
 import AttendanceReport from '../AttendanceReport'
+import EmpChecks from './EmpChecks'
 import { BINDING_LABEL, Confirm, copyText, Drawer, Emp, Field, initials, METHOD_LABEL, Modal, randomPassword } from './ui'
 
 type Tab = 'profile' | 'attendance' | 'pay' | 'access'
@@ -136,7 +137,7 @@ export default function EmployeeDrawer({ emp, meId, onClose, onChanged, toast }:
             {code && <button className="btn ghost" onClick={async () => toast((await copyText(code.code)) ? 'Code copied' : 'Copy failed. Select the code and copy it.', false)}>Copy</button>}
             <button className="btn ghost" onClick={makeCode}>{code ? 'New code' : 'Pairing code'}</button>
             {emp.appPaired && <button className="btn ghost" onClick={() => setConfirm('revoke')}>Revoke</button>}</div></div>
-        <div className="action-row"><div><b>Approved phone</b><div className="muted">{emp.phoneApproved ? 'One phone approved' : 'None approved'}</div></div><span className="muted hint">Manage in the Phones tab</span></div>
+        <EmpChecks emp={emp} toast={toast} onChanged={onChanged} />
         <div className="danger-zone"><div className="action-row">
           <div><b>{emp.active ? 'Deactivate employee' : 'Reactivate employee'}</b><div className="muted">{self ? 'You cannot deactivate your own account' : emp.active ? 'Blocks sign-in and punching. History is kept.' : 'Allows sign-in and punching again.'}</div></div>
           <button className={`btn${emp.active ? ' danger' : ' ghost'}`} disabled={self && emp.active} onClick={() => setConfirm(emp.active ? 'deactivate' : 'reactivate')}>{emp.active ? 'Deactivate' : 'Reactivate'}</button></div>
