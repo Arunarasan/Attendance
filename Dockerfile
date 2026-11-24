@@ -10,10 +10,12 @@ RUN npm run build
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY backend/pom.xml .
-RUN mvn -q -B dependency:go-offline
+# Maven Central sometimes answers 429 (too many requests) to shared build servers, so retry with a pause instead of failing the deploy.
+ENV MVN="mvn -q -B -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=30"
+RUN for i in 1 2 3 4 5; do $MVN dependency:go-offline && break; echo "retry $i"; sleep $((i * 20)); done
 COPY backend/src ./src
 COPY --from=web /web/dist ./src/main/resources/static
-RUN mvn -q -B package -DskipTests
+RUN for i in 1 2 3 4 5; do $MVN package -DskipTests && break; echo "retry $i"; sleep $((i * 20)); done; test -n "$(ls target/attendance-*.jar 2>/dev/null)"
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
